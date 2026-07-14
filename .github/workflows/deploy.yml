@@ -89,33 +89,30 @@ jobs:
           SSH_KEY:     ${{ secrets.HOSTPOINT_SSH_PRIVATE_KEY }}
           SSH_HOST:    ${{ secrets.HOSTPOINT_SSH_HOST }}
           SSH_USER:    ${{ secrets.HOSTPOINT_SSH_USER }}
-          SSH_PORT:    ${{ secrets.HOSTPOINT_SSH_PORT }}
           REMOTE_PATH: ${{ secrets.HOSTPOINT_REMOTE_PATH }}
         run: |
           set -euo pipefail
-          
+
           # Fail early with a clear message if a required secret is missing/empty.
           : "${SSH_HOST:?HOSTPOINT_SSH_HOST secret is not set (WebHosting environment)}"
           : "${SSH_USER:?HOSTPOINT_SSH_USER secret is not set (WebHosting environment)}"
           : "${SSH_KEY:?HOSTPOINT_SSH_PRIVATE_KEY secret is not set (WebHosting environment)}"
           : "${REMOTE_PATH:?HOSTPOINT_REMOTE_PATH secret is not set (WebHosting environment)}"
-          
-          PORT="${SSH_PORT:-22}"
+
           mkdir -p ~/.ssh
-          
+
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
-          # Use host key scanning to add Hostpoint to trusted list automatically
+          # HostPoint SSH is the standard port 22 — do NOT pass a custom -p port.
+          # (Reusing a DB port here is what caused "Network is unreachable".)
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-
-          SSH_OPTS="-i ~/.ssh/deploy_key -p $PORT"
 
           # rsync the built tree into the web root. Trailing slash on the source
           # syncs its *contents*. --delete keeps the web root clean of stale assets;
           # .well-known (ACME/Let's Encrypt) and uploads/ are preserved.
           rsync -az --delete --exclude='.well-known/' --exclude='uploads/' \
-            -e "ssh $SSH_OPTS" \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             deploy/ "$SSH_USER@$SSH_HOST:$REMOTE_PATH/"
 
           rm -f ~/.ssh/deploy_key
@@ -125,15 +122,13 @@ jobs:
           SSH_KEY:     ${{ secrets.HOSTPOINT_SSH_PRIVATE_KEY }}
           SSH_HOST:    ${{ secrets.HOSTPOINT_SSH_HOST }}
           SSH_USER:    ${{ secrets.HOSTPOINT_SSH_USER }}
-          SSH_PORT:    ${{ secrets.HOSTPOINT_SSH_PORT }}
           REMOTE_PATH: ${{ secrets.HOSTPOINT_REMOTE_PATH }}
         run: |
-          PORT="${SSH_PORT:-22}"
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          
-          ssh -i ~/.ssh/deploy_key -p "$PORT" -o StrictHostKeyChecking=no \
+
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             "$SSH_USER@$SSH_HOST" \
             "mkdir -p $REMOTE_PATH/uploads && chmod 755 $REMOTE_PATH/uploads"
             
