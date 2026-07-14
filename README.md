@@ -70,18 +70,18 @@ wegen SameSite=Strict aber am besten über den kombinierten Server oben).
    `api/config.php` auf dem Server — **kein manuelles Editieren nötig, keine Secrets
    im Repo**. (`api/config.sample.php` bleibt als Referenz / für lokale Nutzung.)
 5. **Deployment:** Bei Push auf `main` (oder manuell via *Run workflow*) baut GitHub
-   Actions und lädt via **SFTP über SSH-Key** hoch.
+   Actions und deployt via **rsync über SSH** (SSH-User + Key, kein SFTP-Tool).
 
 ### Benötigte GitHub-Secrets (Settings → Secrets and variables → Actions)
 
-**Deployment (SFTP über SSH-Key):**
+**Deployment (SSH-User + Key, rsync):**
 
 | Secret                      | Beschreibung                                        |
 |-----------------------------|-----------------------------------------------------|
-| `HOSTPOINT_SFTP_SERVER`     | SSH/SFTP-Host (z. B. `deine-domain.ch`)             |
-| `HOSTPOINT_SFTP_USERNAME`   | SSH-Benutzername                                    |
+| `HOSTPOINT_SSH_HOST`        | SSH-Host (z. B. `deine-domain.ch`)                  |
+| `HOSTPOINT_SSH_USER`        | SSH-Benutzername                                    |
 | `HOSTPOINT_SSH_PRIVATE_KEY` | **Privater** SSH-Schlüssel (kompletter PEM-Inhalt)  |
-| `HOSTPOINT_SFTP_PORT`       | i. d. R. `22`                                       |
+| `HOSTPOINT_SSH_PORT`        | i. d. R. `22` (optional, Standard `22`)             |
 | `HOSTPOINT_REMOTE_PATH`     | Ziel-Web-Root (z. B. `/home/…/www`)                 |
 
 **App-Konfiguration (wird in `api/config.php` gebacken):**

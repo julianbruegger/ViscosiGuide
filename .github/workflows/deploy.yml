@@ -1,8 +1,9 @@
 name: Deploy to HostPoint
 
-# Builds the Astro frontend + PHP dependencies and uploads them to HostPoint via SFTP.
-# Runs on pushes to main and on manual dispatch. The server-side api/config.php
-# (DB + SMTP secrets) is NOT uploaded — it lives on the server and is never in git.
+# Builds the Astro frontend + PHP dependencies and deploys them to HostPoint over
+# SSH (rsync) using an SSH user + private key. Runs on pushes to main and on manual
+# dispatch. api/config.php (DB + SMTP secrets) is generated from GitHub Secrets at
+# deploy time and is never committed to git.
 
 on:
   push:
@@ -73,13 +74,27 @@ jobs:
           php bin/make-config.php > deploy/api/config.php
           echo "config.php generated ($(wc -c < deploy/api/config.php) bytes)"
 
-      - name: Upload via SFTP (SSH key auth)
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.5
-        with:
-          server: ${{ secrets.HOSTPOINT_SFTP_SERVER }}
-          username: ${{ secrets.HOSTPOINT_SFTP_USERNAME }}
-          ssh_private_key: ${{ secrets.HOSTPOINT_SSH_PRIVATE_KEY }}
-          port: ${{ secrets.HOSTPOINT_SFTP_PORT }}
-          local_path: './deploy/*'
-          remote_path: ${{ secrets.HOSTPOINT_REMOTE_PATH }}
-          sftp_only: true
+      - name: Deploy over SSH (rsync)
+        env:
+          SSH_KEY:     ${{ secrets.HOSTPOINT_SSH_PRIVATE_KEY }}
+          SSH_HOST:    ${{ secrets.HOSTPOINT_SSH_HOST }}
+          SSH_USER:    ${{ secrets.HOSTPOINT_SSH_USER }}
+          SSH_PORT:    ${{ secrets.HOSTPOINT_SSH_PORT }}
+          REMOTE_PATH: ${{ secrets.HOSTPOINT_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          PORT="${SSH_PORT:-22}"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Pin the host key for this run.
+          ssh-keyscan -p "$PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # rsync the built tree into the web root. Trailing slash on the source
+          # syncs its *contents*. --delete keeps the web root clean of stale assets;
+          # .well-known (ACME/Let's Encrypt) is preserved.
+          rsync -az --delete --exclude='.well-known/' \
+            -e "ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes" \
+            deploy/ "$SSH_USER@$SSH_HOST:$REMOTE_PATH/"
+
+          rm -f ~/.ssh/deploy_key
