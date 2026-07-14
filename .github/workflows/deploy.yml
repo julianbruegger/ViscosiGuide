@@ -50,19 +50,36 @@ jobs:
           cp -r api deploy/api
           cp -r vendor deploy/vendor
           cp .htaccess deploy/.htaccess
-          # Never ship secrets or dev-only files.
+          # Start from a clean slate — never ship a stray committed config.
           rm -f deploy/api/config.php
           echo "Deploy tree:" && find deploy -maxdepth 2 -type d
 
-      - name: Upload via SFTP
+      - name: Generate server config (DB + mail) from secrets
+        env:
+          CFG_BASE_URL:        ${{ secrets.APP_BASE_URL }}
+          CFG_DB_HOST:         ${{ secrets.DB_HOST }}
+          CFG_DB_PORT:         ${{ secrets.DB_PORT }}
+          CFG_DB_NAME:         ${{ secrets.DB_NAME }}
+          CFG_DB_USER:         ${{ secrets.DB_USER }}
+          CFG_DB_PASSWORD:     ${{ secrets.DB_PASSWORD }}
+          CFG_MAIL_FROM_EMAIL: ${{ secrets.MAIL_FROM_EMAIL }}
+          CFG_MAIL_FROM_NAME:  ${{ secrets.MAIL_FROM_NAME }}
+          CFG_SMTP_HOST:       ${{ secrets.SMTP_HOST }}
+          CFG_SMTP_PORT:       ${{ secrets.SMTP_PORT }}
+          CFG_SMTP_ENCRYPTION: ${{ secrets.SMTP_ENCRYPTION }}
+          CFG_SMTP_USERNAME:   ${{ secrets.SMTP_USERNAME }}
+          CFG_SMTP_PASSWORD:   ${{ secrets.SMTP_PASSWORD }}
+        run: |
+          php bin/make-config.php > deploy/api/config.php
+          echo "config.php generated ($(wc -c < deploy/api/config.php) bytes)"
+
+      - name: Upload via SFTP (SSH key auth)
         uses: wlixcc/SFTP-Deploy-Action@v1.2.5
         with:
           server: ${{ secrets.HOSTPOINT_SFTP_SERVER }}
           username: ${{ secrets.HOSTPOINT_SFTP_USERNAME }}
-          password: ${{ secrets.HOSTPOINT_SFTP_PASSWORD }}
+          ssh_private_key: ${{ secrets.HOSTPOINT_SSH_PRIVATE_KEY }}
           port: ${{ secrets.HOSTPOINT_SFTP_PORT }}
           local_path: './deploy/*'
           remote_path: ${{ secrets.HOSTPOINT_REMOTE_PATH }}
           sftp_only: true
-          # Keep the server-side config.php in place across deploys.
-          exclude_list: 'config.php'
