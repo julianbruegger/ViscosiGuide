@@ -95,14 +95,17 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          # Pin the host key for this run.
-          ssh-keyscan -p "$PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # SSH options: trust the host key on first connect (accept-new adds it to
+          # known_hosts) and fail with a real error if the host can't be reached,
+          # instead of a fragile pre-scan whose errors get swallowed.
+          SSH_OPTS="-i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20"
 
           # rsync the built tree into the web root. Trailing slash on the source
           # syncs its *contents*. --delete keeps the web root clean of stale assets;
           # .well-known (ACME/Let's Encrypt) is preserved.
           rsync -az --delete --exclude='.well-known/' \
-            -e "ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes" \
+            -e "ssh $SSH_OPTS" \
             deploy/ "$SSH_USER@$SSH_HOST:$REMOTE_PATH/"
 
           rm -f ~/.ssh/deploy_key
