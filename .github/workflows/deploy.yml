@@ -69,7 +69,7 @@ jobs:
         env:
           CFG_BASE_URL:        ${{ secrets.APP_BASE_URL }}
           CFG_DB_HOST:         ${{ secrets.DB_HOST }}
-          CFG_DB_PORT:         ${{ secrets.HOSTPOINT_SSH_PORT }} # Falls back to DB port if needed, or default 3306
+          CFG_DB_PORT:         ${{ secrets.DB_PORT }} # Optional; make-config.php defaults to 3306 (MariaDB) when unset
           CFG_DB_NAME:         ${{ secrets.DB_NAME }}
           CFG_DB_USER:         ${{ secrets.DB_USER }}
           CFG_DB_PASSWORD:     ${{ secrets.DB_PASSWORD }}
