@@ -1,0 +1,41 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="ViscosiGuide — Login" active="">
+  <section class="vg-panel" style="max-width:460px;margin:0 auto;">
+    <h2>🔑 Login</h2>
+    <div id="vg-msg"></div>
+    <form id="vg-form">
+      <div class="vg-field">
+        <label for="email">E-Mail</label>
+        <input id="email" type="email" class="vg-input" required autocomplete="email" />
+      </div>
+      <div class="vg-field">
+        <label for="password">Passwort</label>
+        <input id="password" type="password" class="vg-input" required autocomplete="current-password" />
+      </div>
+      <button type="submit" class="vg-btn vg-btn--primary">Einloggen</button>
+    </form>
+    <hr class="vg-rule" />
+    <p class="vg-hint">Kein Konto? <a href="/register">Registrieren</a> · <a href="/forgot">Passwort vergessen?</a></p>
+  </section>
+
+  <script>
+    import { login, ApiError } from '../lib/api';
+    import { showMessage } from '../lib/ui';
+
+    const msg = document.getElementById('vg-msg')!;
+    document.getElementById('vg-form')!.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = (document.getElementById('email') as HTMLInputElement).value.trim();
+      const password = (document.getElementById('password') as HTMLInputElement).value;
+      try {
+        await login(email, password);
+        window.location.href = '/';
+      } catch (err) {
+        const text = err instanceof ApiError ? err.message : 'Login fehlgeschlagen.';
+        showMessage(msg, text, 'error');
+      }
+    });
+  </script>
+</BaseLayout>

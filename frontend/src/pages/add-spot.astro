@@ -1,0 +1,106 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { CATEGORIES, categoryLabel } from '../lib/ui';
+---
+<BaseLayout title="ViscosiGuide — Spot erfassen" active="add">
+  <section class="vg-panel">
+    <h2>➕ Neuen Food-Spot erfassen</h2>
+    <div id="vg-guard"></div>
+    <div id="vg-msg"></div>
+
+    <form id="vg-form" hidden>
+      <div class="vg-field">
+        <label for="name">Name *</label>
+        <input id="name" class="vg-input" required maxlength="120" />
+      </div>
+      <div class="vg-inline">
+        <div class="vg-field" style="flex:1">
+          <label for="category">Kategorie</label>
+          <select id="category" class="vg-select">
+            {CATEGORIES.map((c) => <option value={c}>{categoryLabel(c)}</option>)}
+          </select>
+        </div>
+        <div class="vg-field" style="flex:1">
+          <label for="price_level">Preisniveau</label>
+          <select id="price_level" class="vg-select">
+            <option value="1">$ günstig</option>
+            <option value="2" selected>$$ moderat</option>
+            <option value="3">$$$ gehoben</option>
+            <option value="4">$$$$ teuer</option>
+          </select>
+        </div>
+      </div>
+      <div class="vg-field">
+        <label for="address">Adresse (optional)</label>
+        <input id="address" class="vg-input" maxlength="255" />
+      </div>
+      <div class="vg-field">
+        <label for="description">Beschreibung (optional)</label>
+        <textarea id="description" class="vg-textarea" maxlength="2000"></textarea>
+      </div>
+      <div class="vg-field">
+        <label>Standort * — klick auf die Karte, um den Pin zu setzen</label>
+        <div id="vg-map"></div>
+        <p class="vg-hint" id="vg-coords">Noch kein Standort gewählt.</p>
+      </div>
+      <button type="submit" class="vg-btn vg-btn--primary">Spot speichern</button>
+    </form>
+  </section>
+
+  <script>
+    import { getMe, createSpot, ApiError } from '../lib/api';
+    import { createMap } from '../lib/map';
+    import { showMessage } from '../lib/ui';
+    import L from 'leaflet';
+
+    const guard = document.getElementById('vg-guard')!;
+    const form = document.getElementById('vg-form') as HTMLFormElement;
+    const msg = document.getElementById('vg-msg')!;
+    const coordsLabel = document.getElementById('vg-coords')!;
+    let picked: L.LatLng | null = null;
+
+    getMe().then(({ user }) => {
+      if (!user) {
+        guard.innerHTML = '<p class="vg-msg vg-msg--error">Bitte <a href="/login">einloggen</a>, um Spots zu erfassen.</p>';
+        return;
+      }
+      form.hidden = false;
+      const map = createMap('vg-map');
+      let marker: L.Marker | null = null;
+      map.on('click', (e: L.LeafletMouseEvent) => {
+        picked = e.latlng;
+        if (marker) marker.setLatLng(e.latlng);
+        else marker = L.marker(e.latlng).addTo(map);
+        coordsLabel.textContent = `Standort: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+      });
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!picked) {
+        showMessage(msg, 'Bitte einen Standort auf der Karte wählen.', 'error');
+        return;
+      }
+      const name = (document.getElementById('name') as HTMLInputElement).value.trim();
+      if (name.length < 2) {
+        showMessage(msg, 'Bitte einen Namen eingeben.', 'error');
+        return;
+      }
+      try {
+        const spot = await createSpot({
+          name,
+          lat: picked.lat,
+          lng: picked.lng,
+          category: (document.getElementById('category') as HTMLSelectElement).value,
+          price_level: Number((document.getElementById('price_level') as HTMLSelectElement).value),
+          description: (document.getElementById('description') as HTMLTextAreaElement).value.trim() || undefined,
+          address: (document.getElementById('address') as HTMLInputElement).value.trim() || undefined,
+        });
+        window.location.href = '/spot?id=' + spot.id;
+      } catch (err) {
+        const text = err instanceof ApiError ? err.message : 'Speichern fehlgeschlagen.';
+        showMessage(msg, text, 'error');
+      }
+    });
+  </script>
+</BaseLayout>

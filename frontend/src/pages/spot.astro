@@ -1,0 +1,171 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="ViscosiGuide — Spot" active="home">
+  <section class="vg-panel" id="vg-spot">
+    <p class="vg-muted">Lade Spot…</p>
+  </section>
+
+  <section class="vg-panel" id="vg-rate-panel" hidden>
+    <h2>Deine Bewertung</h2>
+    <div id="vg-rate-msg"></div>
+    <form id="vg-rate-form">
+      <div class="vg-field">
+        <label>Gesamt-Rating</label>
+        <div class="vg-rate" data-group="rating"></div>
+      </div>
+      <div class="vg-field">
+        <label>Preis (1 = günstig, 5 = teuer)</label>
+        <div class="vg-rate" data-group="price_rating"></div>
+      </div>
+      <div class="vg-field">
+        <label>Bang for the Buck</label>
+        <div class="vg-rate" data-group="bang_for_buck"></div>
+      </div>
+      <div class="vg-field">
+        <label for="vg-comment">Kommentar (optional)</label>
+        <textarea id="vg-comment" class="vg-textarea" maxlength="600" placeholder="Was gab's? Wie war's?"></textarea>
+      </div>
+      <button type="submit" class="vg-btn vg-btn--primary">Bewertung speichern</button>
+    </form>
+  </section>
+
+  <section class="vg-panel">
+    <h2>Alle Bewertungen</h2>
+    <div id="vg-ratings"><p class="vg-muted">—</p></div>
+  </section>
+
+  <script>
+    import { getMe, getSpot, listRatings, rateSpot, ApiError } from '../lib/api';
+    import { el, starsEl, categoryLabel, priceLevel, fmtDate, showMessage } from '../lib/ui';
+    import { createMap } from '../lib/map';
+    import L from 'leaflet';
+
+    const params = new URLSearchParams(window.location.search);
+    const id = Number(params.get('id'));
+    const spotBox = document.getElementById('vg-spot')!;
+    const ratingsBox = document.getElementById('vg-ratings')!;
+    const ratePanel = document.getElementById('vg-rate-panel') as HTMLElement;
+    const rateMsg = document.getElementById('vg-rate-msg')!;
+
+    if (!Number.isFinite(id) || id <= 0) {
+      spotBox.innerHTML = '';
+      spotBox.append(el('p', { class: 'vg-msg vg-msg--error', text: 'Ungültiger Spot.' }));
+    } else {
+      init();
+    }
+
+    // Build a 1–5 star radio group inside a .vg-rate container.
+    function buildStars(group: HTMLElement) {
+      const name = group.dataset.group!;
+      for (let i = 5; i >= 1; i--) {
+        const input = el('input', { type: 'radio', name, id: `${name}-${i}`, value: String(i) }) as HTMLInputElement;
+        const label = el('label', { for: `${name}-${i}`, text: '★', title: `${i}` });
+        group.append(input, label);
+      }
+    }
+    function selected(name: string): number {
+      const checked = document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`);
+      return checked ? Number(checked.value) : 0;
+    }
+
+    async function init() {
+      try {
+        const spot = await getSpot(id);
+        renderSpot(spot);
+      } catch {
+        spotBox.innerHTML = '';
+        spotBox.append(el('p', { class: 'vg-msg vg-msg--error', text: 'Spot nicht gefunden.' }));
+        return;
+      }
+      await renderRatings();
+
+      const { user } = await getMe().catch(() => ({ user: null }));
+      if (user) {
+        ratePanel.hidden = false;
+        ratePanel.querySelectorAll<HTMLElement>('.vg-rate').forEach(buildStars);
+        document.getElementById('vg-rate-form')!.addEventListener('submit', onSubmit);
+      } else {
+        ratePanel.hidden = false;
+        ratePanel.innerHTML = '<h2>Deine Bewertung</h2><p class="vg-muted">Bitte <a href="/login">einloggen</a>, um zu bewerten.</p>';
+      }
+    }
+
+    function renderSpot(spot: import('../lib/api').Spot) {
+      spotBox.innerHTML = '';
+      spotBox.append(el('h2', { text: spot.name }));
+
+      const badges = el('p');
+      badges.append(el('span', { class: 'vg-badge', text: categoryLabel(spot.category) }));
+      badges.append(document.createTextNode(' '));
+      badges.append(el('span', { class: 'vg-price', text: priceLevel(spot.price_level) }));
+      spotBox.append(badges);
+
+      const rrow = el('p');
+      rrow.append(starsEl(spot.avg_rating));
+      rrow.append(el('span', { class: 'vg-metric', text: spot.avg_rating != null ? `  ${spot.avg_rating.toFixed(1)}/5` : '  noch nicht bewertet' }));
+      spotBox.append(rrow);
+
+      if (spot.avg_bang != null || spot.avg_price != null) {
+        const m = el('p', { class: 'vg-metric' });
+        const bits: string[] = [];
+        if (spot.avg_price != null) bits.push(`Preis-Empfinden: ${spot.avg_price.toFixed(1)}/5`);
+        if (spot.avg_bang != null) bits.push(`Bang for the Buck: ${spot.avg_bang.toFixed(1)}/5`);
+        m.textContent = bits.join(' · ');
+        spotBox.append(m);
+      }
+
+      if (spot.description) spotBox.append(el('p', { text: spot.description }));
+      if (spot.address) spotBox.append(el('p', { class: 'vg-muted', text: '📍 ' + spot.address }));
+      if (spot.created_by_name) spotBox.append(el('p', { class: 'vg-hint', text: 'Erfasst von ' + spot.created_by_name }));
+
+      const mapDiv = el('div', { id: 'vg-map' });
+      spotBox.append(mapDiv);
+      const map = createMap('vg-map');
+      map.setView([spot.lat, spot.lng], 16);
+      L.marker([spot.lat, spot.lng]).addTo(map);
+    }
+
+    async function renderRatings() {
+      const ratings = await listRatings(id).catch(() => []);
+      ratingsBox.innerHTML = '';
+      if (ratings.length === 0) {
+        ratingsBox.append(el('p', { class: 'vg-muted', text: 'Noch keine Bewertungen.' }));
+        return;
+      }
+      for (const r of ratings) {
+        const card = el('div', { class: 'vg-card' });
+        const head = el('p');
+        head.append(starsEl(r.rating));
+        head.append(el('strong', { text: '  ' + r.author }));
+        head.append(el('span', { class: 'vg-hint', text: '  ' + fmtDate(r.created_at) }));
+        card.append(head);
+        card.append(el('p', { class: 'vg-metric', text: `Preis ${r.price_rating}/5 · Bang for the Buck ${r.bang_for_buck}/5` }));
+        if (r.comment) card.append(el('p', { text: r.comment }));
+        ratingsBox.append(card);
+      }
+    }
+
+    async function onSubmit(e: Event) {
+      e.preventDefault();
+      const rating = selected('rating');
+      const price = selected('price_rating');
+      const bang = selected('bang_for_buck');
+      if (!rating || !price || !bang) {
+        showMessage(rateMsg, 'Bitte alle drei Wertungen (1–5) setzen.', 'error');
+        return;
+      }
+      const comment = (document.getElementById('vg-comment') as HTMLTextAreaElement).value.trim();
+      try {
+        await rateSpot(id, { rating, price_rating: price, bang_for_buck: bang, comment: comment || undefined });
+        showMessage(rateMsg, 'Danke für deine Bewertung!', 'ok');
+        const spot = await getSpot(id);
+        renderSpot(spot);
+        await renderRatings();
+      } catch (err) {
+        const msg = err instanceof ApiError ? err.message : 'Speichern fehlgeschlagen.';
+        showMessage(rateMsg, msg, 'error');
+      }
+    }
+  </script>
+</BaseLayout>

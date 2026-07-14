@@ -1,0 +1,56 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="ViscosiGuide — Profil" active="">
+  <section class="vg-panel" style="max-width:520px;margin:0 auto;">
+    <h2>👤 Profil</h2>
+    <div id="vg-guard"></div>
+    <div id="vg-msg"></div>
+    <form id="vg-form" hidden>
+      <div class="vg-field">
+        <label for="email">E-Mail</label>
+        <input id="email" class="vg-input" disabled />
+      </div>
+      <div class="vg-field">
+        <label for="name">Anzeigename</label>
+        <input id="name" class="vg-input" required minlength="2" maxlength="80" />
+      </div>
+      <div class="vg-field">
+        <label><input type="checkbox" id="notify" /> Benachrichtige mich per E-Mail über neue Food-Buddy-Anfragen</label>
+      </div>
+      <button type="submit" class="vg-btn vg-btn--primary">Speichern</button>
+    </form>
+  </section>
+
+  <script>
+    import { getMe, updateProfile, ApiError } from '../lib/api';
+    import { showMessage } from '../lib/ui';
+
+    const guard = document.getElementById('vg-guard')!;
+    const form = document.getElementById('vg-form') as HTMLFormElement;
+    const msg = document.getElementById('vg-msg')!;
+
+    getMe().then(({ user }) => {
+      if (!user) {
+        guard.innerHTML = '<p class="vg-msg vg-msg--error">Bitte <a href="/login">einloggen</a>.</p>';
+        return;
+      }
+      (document.getElementById('email') as HTMLInputElement).value = user.email;
+      (document.getElementById('name') as HTMLInputElement).value = user.display_name;
+      (document.getElementById('notify') as HTMLInputElement).checked = user.notify_new_buddy;
+      form.hidden = false;
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = (document.getElementById('name') as HTMLInputElement).value.trim();
+      const notify = (document.getElementById('notify') as HTMLInputElement).checked;
+      try {
+        await updateProfile(name, notify);
+        showMessage(msg, 'Profil gespeichert.', 'ok');
+      } catch (err) {
+        showMessage(msg, err instanceof ApiError ? err.message : 'Speichern fehlgeschlagen.', 'error');
+      }
+    });
+  </script>
+</BaseLayout>

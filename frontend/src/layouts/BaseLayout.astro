@@ -1,0 +1,109 @@
+---
+import '../styles/nostalgia.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  active?: string;
+}
+const { title = 'ViscosiGuide', description = 'Der Food- & Restaurant-Guide für Viscosi Emmenbrücke.', active = '' } = Astro.props;
+
+// Enforceable CSP directives are also set as a header in .htaccess for production;
+// this meta tag makes them apply during local (built) preview too. script-src is
+// strict 'self' (all JS is bundled, no inline); style-src allows inline because
+// Leaflet positions map elements via inline styles.
+const csp = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https://*.tile.openstreetmap.org",
+  "connect-src 'self'",
+  "font-src 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join('; ');
+
+const nav = [
+  { href: '/', label: 'Karte', key: 'home' },
+  { href: '/add-spot', label: 'Spot erfassen', key: 'add' },
+  { href: '/buddies', label: 'Food-Buddies', key: 'buddies' },
+];
+---
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content={csp} />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <div class="vg-shell">
+      <header class="vg-banner">
+        <h1>🍽️ ViscosiGuide</h1>
+        <div class="vg-tagline">FOOD &amp; RESTAURANT GUIDE · EMMENBRÜCKE</div>
+      </header>
+      <div class="vg-marquee" aria-hidden="true">
+        <span>★ Willkommen im ViscosiGuide ★ Bewerte deine Lieblings-Spots ★ Finde Food-Buddies fürs Mittagessen ★ Bang for the Buck ★ En Guete! ★</span>
+      </div>
+
+      <nav class="vg-nav" aria-label="Hauptnavigation">
+        {nav.map((item) => (
+          <a href={item.href} aria-current={active === item.key ? 'page' : undefined}>{item.label}</a>
+        ))}
+        <span class="vg-spacer"></span>
+        <span class="vg-user" id="vg-navuser"></span>
+      </nav>
+
+      <main class="vg-main">
+        <slot />
+      </main>
+
+      <footer class="vg-footer">
+        <hr class="vg-rule" />
+        <p>ViscosiGuide · gebaut mit Nostalgie · <a href="/profile">Profil</a></p>
+      </footer>
+    </div>
+
+    <script>
+      import { getMe, logout } from '../lib/api';
+
+      const el = document.getElementById('vg-navuser');
+      if (el) {
+        getMe()
+          .then(({ user }) => {
+            el.innerHTML = '';
+            if (user) {
+              const hi = document.createElement('span');
+              hi.textContent = `Hoi, ${user.display_name} · `;
+              const profile = document.createElement('a');
+              profile.href = '/profile';
+              profile.textContent = 'Profil';
+              const out = document.createElement('a');
+              out.href = '#';
+              out.textContent = 'Logout';
+              out.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await logout();
+                window.location.href = '/';
+              });
+              el.append(hi, profile, document.createTextNode(' · '), out);
+            } else {
+              const login = document.createElement('a');
+              login.href = '/login';
+              login.textContent = 'Login';
+              const reg = document.createElement('a');
+              reg.href = '/register';
+              reg.textContent = 'Registrieren';
+              el.append(login, document.createTextNode(' · '), reg);
+            }
+          })
+          .catch(() => {
+            /* API offline — leave nav minimal */
+          });
+      }
+    </script>
+  </body>
+</html>

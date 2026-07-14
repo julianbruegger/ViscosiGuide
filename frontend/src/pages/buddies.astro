@@ -1,0 +1,229 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="ViscosiGuide — Food-Buddies" active="buddies">
+  <div id="vg-view"><p class="vg-muted">Lade…</p></div>
+
+  <script>
+    import {
+      getMe, listBuddies, getBuddy, createBuddy, joinBuddy, proposeBuddy, closeBuddy,
+      listSpots, ApiError, type User, type Spot, type Buddy,
+    } from '../lib/api';
+    import { el, fmtDate, showMessage } from '../lib/ui';
+
+    const view = document.getElementById('vg-view')!;
+    let me: User | null = null;
+    let spots: Spot[] = [];
+
+    (async () => {
+      me = (await getMe().catch(() => ({ user: null }))).user;
+      spots = await listSpots().catch(() => []);
+      const id = Number(new URLSearchParams(window.location.search).get('id'));
+      if (Number.isFinite(id) && id > 0) {
+        await renderDetail(id);
+      } else {
+        await renderList();
+      }
+    })();
+
+    function spotSelect(id: string): HTMLSelectElement {
+      const sel = el('select', { id, class: 'vg-select' }) as HTMLSelectElement;
+      sel.append(el('option', { value: '', text: '— kein Spot —' }));
+      for (const s of spots) sel.append(el('option', { value: String(s.id), text: s.name }));
+      return sel;
+    }
+
+    // ---- List + create -------------------------------------------------------
+    async function renderList() {
+      view.innerHTML = '';
+
+      const createPanel = el('section', { class: 'vg-panel' });
+      createPanel.append(el('h2', { text: '🍜 Neue Lunch-Anfrage' }));
+      if (!me) {
+        createPanel.append(el('p', { class: 'vg-muted' }, [
+          document.createTextNode('Bitte '),
+          el('a', { href: '/login', text: 'einloggen' }),
+          document.createTextNode(', um eine Anfrage zu starten.'),
+        ]));
+      } else {
+        const msg = el('div');
+        const form = el('form') as HTMLFormElement;
+
+        const titleField = field('Worum geht’s? *');
+        const title = el('input', { class: 'vg-input', maxlength: '120', placeholder: 'z.B. Wer kommt mit zum Thai?' }) as HTMLInputElement;
+        titleField.append(title);
+
+        const cravingField = field('Lust auf… (optional)');
+        const craving = el('input', { class: 'vg-input', maxlength: '120', placeholder: 'Curry, Pizza, Salat…' }) as HTMLInputElement;
+        cravingField.append(craving);
+
+        const spotField = field('Fixer Spot? (optional)');
+        const spotSel = spotSelect('vg-cspot');
+        spotField.append(spotSel);
+
+        const timeField = field('Wann? (optional)');
+        const time = el('input', { type: 'datetime-local', class: 'vg-input' }) as HTMLInputElement;
+        timeField.append(time);
+
+        const noteField = field('Notiz (optional)');
+        const note = el('input', { class: 'vg-input', maxlength: '160', placeholder: 'Treffpunkt Lobby, 12:00…' }) as HTMLInputElement;
+        noteField.append(note);
+
+        const submit = el('button', { type: 'submit', class: 'vg-btn vg-btn--primary', text: 'Anfrage starten' });
+        form.append(titleField, cravingField, spotField, timeField, noteField, submit);
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          if (title.value.trim().length < 3) { showMessage(msg, 'Bitte einen Titel eingeben (min. 3 Zeichen).', 'error'); return; }
+          try {
+            const b = await createBuddy({
+              title: title.value.trim(),
+              craving: craving.value.trim() || undefined,
+              spot_id: spotSel.value ? Number(spotSel.value) : null,
+              desired_time: time.value || null,
+              location_note: note.value.trim() || undefined,
+            });
+            window.location.href = '/buddies?id=' + b.id;
+          } catch (err) {
+            showMessage(msg, err instanceof ApiError ? err.message : 'Fehlgeschlagen.', 'error');
+          }
+        });
+        createPanel.append(msg, form);
+      }
+      view.append(createPanel);
+
+      const listPanel = el('section', { class: 'vg-panel' });
+      listPanel.append(el('h2', { text: '📋 Offene Lunch-Anfragen' }));
+      const buddies = await listBuddies().catch(() => []);
+      if (buddies.length === 0) {
+        listPanel.append(el('p', { class: 'vg-muted', text: 'Aktuell keine offenen Anfragen. Starte die erste!' }));
+      } else {
+        const grid = el('div', { class: 'vg-grid' });
+        for (const b of buddies) grid.append(buddyCard(b));
+        listPanel.append(grid);
+      }
+      view.append(listPanel);
+    }
+
+    function buddyCard(b: Buddy): HTMLElement {
+      const card = el('article', { class: 'vg-card' });
+      const h = el('h3');
+      h.append(el('a', { href: '/buddies?id=' + b.id, text: b.title }));
+      card.append(h);
+      if (b.craving) card.append(el('p', { class: 'vg-badge', text: b.craving }));
+      const meta = el('p', { class: 'vg-metric' });
+      const bits = [`Host: ${b.host_name}`, `${b.participant_count} dabei`];
+      if (b.spot_name) bits.push(`@ ${b.spot_name}`);
+      if (b.desired_time) bits.push(fmtDate(b.desired_time));
+      meta.textContent = bits.join(' · ');
+      card.append(meta);
+      if (b.location_note) card.append(el('p', { class: 'vg-muted', text: b.location_note }));
+      return card;
+    }
+
+    // ---- Detail --------------------------------------------------------------
+    async function renderDetail(id: number) {
+      let b: Buddy;
+      try { b = await getBuddy(id); }
+      catch { view.innerHTML = ''; view.append(el('p', { class: 'vg-msg vg-msg--error', text: 'Anfrage nicht gefunden.' })); return; }
+
+      view.innerHTML = '';
+      const panel = el('section', { class: 'vg-panel' });
+      panel.append(el('p', {}, [el('a', { href: '/buddies', text: '← Alle Anfragen' })]));
+      panel.append(el('h2', { text: b.title }));
+      if (b.status !== 'open') panel.append(el('p', { class: 'vg-badge', text: 'GESCHLOSSEN' }));
+
+      const meta = el('p', { class: 'vg-metric' });
+      const bits = [`Host: ${b.host_name}`];
+      if (b.craving) bits.push(`Lust auf: ${b.craving}`);
+      if (b.spot_name) bits.push(`Spot: ${b.spot_name}`);
+      if (b.desired_time) bits.push(`Zeit: ${fmtDate(b.desired_time)}`);
+      meta.textContent = bits.join(' · ');
+      panel.append(meta);
+      if (b.location_note) panel.append(el('p', { class: 'vg-muted', text: '📍 ' + b.location_note }));
+
+      // Participants
+      panel.append(el('h3', { text: `Dabei (${b.participants?.length ?? 0})` }));
+      const plist = el('ul', { class: 'vg-list-reset' });
+      for (const p of b.participants ?? []) plist.append(el('li', { text: '🙋 ' + p.name }));
+      panel.append(plist);
+
+      // Actions
+      const msg = el('div');
+      panel.append(msg);
+      if (me && b.status === 'open') {
+        const joined = (b.participants ?? []).some((p) => p.name === me!.display_name);
+        const actions = el('div', { class: 'vg-inline' });
+        if (!joined) {
+          const joinBtn = el('button', { class: 'vg-btn vg-btn--primary', text: '🙋 Ich komme mit' });
+          joinBtn.addEventListener('click', async () => {
+            try { await joinBuddy(id); await renderDetail(id); }
+            catch (err) { showMessage(msg, err instanceof ApiError ? err.message : 'Fehlgeschlagen.', 'error'); }
+          });
+          actions.append(joinBtn);
+        }
+        if (me.id === b.host_id) {
+          const closeBtn = el('button', { class: 'vg-btn', text: '🔒 Anfrage schliessen' });
+          closeBtn.addEventListener('click', async () => {
+            try { await closeBuddy(id); await renderDetail(id); }
+            catch (err) { showMessage(msg, err instanceof ApiError ? err.message : 'Fehlgeschlagen.', 'error'); }
+          });
+          actions.append(closeBtn);
+        }
+        panel.append(actions);
+      } else if (!me) {
+        panel.append(el('p', { class: 'vg-muted' }, [
+          document.createTextNode('Bitte '), el('a', { href: '/login', text: 'einloggen' }),
+          document.createTextNode(', um mitzumachen.'),
+        ]));
+      }
+      view.append(panel);
+
+      // Proposals
+      const propPanel = el('section', { class: 'vg-panel' });
+      propPanel.append(el('h3', { text: `Vorschläge (${b.proposals?.length ?? 0})` }));
+      if ((b.proposals?.length ?? 0) === 0) propPanel.append(el('p', { class: 'vg-muted', text: 'Noch keine Vorschläge.' }));
+      for (const p of b.proposals ?? []) {
+        const c = el('div', { class: 'vg-card' });
+        const head = el('p');
+        head.append(el('strong', { text: p.author }));
+        head.append(el('span', { class: 'vg-hint', text: '  ' + fmtDate(p.created_at) }));
+        c.append(head);
+        if (p.spot_name) c.append(el('p', { class: 'vg-badge', text: '📍 ' + p.spot_name }));
+        if (p.message) c.append(el('p', { text: p.message }));
+        propPanel.append(c);
+      }
+
+      if (me && b.status === 'open') {
+        const pMsg = el('div');
+        const pForm = el('form') as HTMLFormElement;
+        pForm.append(el('h3', { text: 'Vorschlag machen' }));
+        const spotField = field('Spot vorschlagen (optional)');
+        const spotSel = spotSelect('vg-pspot');
+        spotField.append(spotSel);
+        const msgField = field('Nachricht (optional)');
+        const message = el('textarea', { class: 'vg-textarea', maxlength: '400', placeholder: 'Wie wär’s mit…?' }) as HTMLTextAreaElement;
+        msgField.append(message);
+        const submit = el('button', { type: 'submit', class: 'vg-btn vg-btn--primary', text: 'Vorschlag senden' });
+        pForm.append(spotField, msgField, submit);
+        pForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          if (!spotSel.value && message.value.trim() === '') { showMessage(pMsg, 'Nachricht oder Spot angeben.', 'error'); return; }
+          try {
+            await proposeBuddy(id, { spot_id: spotSel.value ? Number(spotSel.value) : null, message: message.value.trim() || undefined });
+            await renderDetail(id);
+          } catch (err) {
+            showMessage(pMsg, err instanceof ApiError ? err.message : 'Fehlgeschlagen.', 'error');
+          }
+        });
+        propPanel.append(pMsg, pForm);
+      }
+      view.append(propPanel);
+    }
+
+    function field(labelText: string): HTMLElement {
+      const wrap = el('div', { class: 'vg-field' });
+      wrap.append(el('label', { text: labelText }));
+      return wrap;
+    }
+  </script>
+</BaseLayout>

@@ -1,0 +1,68 @@
+name: Deploy to HostPoint
+
+# Builds the Astro frontend + PHP dependencies and uploads them to HostPoint via SFTP.
+# Runs on pushes to main and on manual dispatch. The server-side api/config.php
+# (DB + SMTP secrets) is NOT uploaded — it lives on the server and is never in git.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-hostpoint
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run check
+          npm run build
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+
+      - name: Install PHP dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Assemble deploy directory
+        run: |
+          mkdir -p deploy
+          cp -r frontend/dist/. deploy/
+          cp -r api deploy/api
+          cp -r vendor deploy/vendor
+          cp .htaccess deploy/.htaccess
+          # Never ship secrets or dev-only files.
+          rm -f deploy/api/config.php
+          echo "Deploy tree:" && find deploy -maxdepth 2 -type d
+
+      - name: Upload via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.5
+        with:
+          server: ${{ secrets.HOSTPOINT_SFTP_SERVER }}
+          username: ${{ secrets.HOSTPOINT_SFTP_USERNAME }}
+          password: ${{ secrets.HOSTPOINT_SFTP_PASSWORD }}
+          port: ${{ secrets.HOSTPOINT_SFTP_PORT }}
+          local_path: './deploy/*'
+          remote_path: ${{ secrets.HOSTPOINT_REMOTE_PATH }}
+          sftp_only: true
+          # Keep the server-side config.php in place across deploys.
+          exclude_list: 'config.php'
