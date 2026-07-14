@@ -1,0 +1,69 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="ViscosiGuide — Karte" active="home">
+  <section class="vg-panel">
+    <h2>🗺️ Die Karte</h2>
+    <p class="vg-muted">Alle Food-Spots rund um Emmenbrücke. Klick einen Pin für Details, oder erfasse deinen eigenen Geheimtipp.</p>
+    <div id="vg-map"></div>
+    <p class="vg-hint">Pin-Farbe = Durchschnittsbewertung · <a href="/add-spot">➕ Spot erfassen</a></p>
+  </section>
+
+  <section class="vg-panel">
+    <h2>🍴 Alle Spots</h2>
+    <div id="vg-spotlist"><p class="vg-muted">Lade Spots…</p></div>
+  </section>
+
+  <script>
+    import { listSpots } from '../lib/api';
+    import { createMap, addSpotMarkers } from '../lib/map';
+    import { el, starsEl, categoryLabel, priceLevel } from '../lib/ui';
+
+    const map = createMap('vg-map');
+    const listBox = document.getElementById('vg-spotlist')!;
+
+    listSpots()
+      .then((spots) => {
+        addSpotMarkers(map, spots);
+
+        listBox.innerHTML = '';
+        if (spots.length === 0) {
+          listBox.append(el('p', { class: 'vg-muted', text: 'Noch keine Spots — sei die/der Erste!' }));
+          return;
+        }
+        const grid = el('div', { class: 'vg-grid' });
+        for (const spot of spots) {
+          const card = el('article', { class: 'vg-card' });
+          const h = el('h3');
+          const link = el('a', { href: '/spot?id=' + spot.id, text: spot.name });
+          h.append(link);
+          card.append(h);
+
+          const badges = el('p');
+          badges.append(el('span', { class: 'vg-badge', text: categoryLabel(spot.category) }));
+          badges.append(document.createTextNode(' '));
+          badges.append(el('span', { class: 'vg-price', text: priceLevel(spot.price_level) }));
+          card.append(badges);
+
+          const ratingRow = el('p');
+          ratingRow.append(starsEl(spot.avg_rating));
+          const count = spot.rating_count === 1 ? '1 Bewertung' : `${spot.rating_count} Bewertungen`;
+          ratingRow.append(el('span', { class: 'vg-metric', text: ' ' + count }));
+          card.append(ratingRow);
+
+          if (spot.avg_bang != null) {
+            card.append(el('p', { class: 'vg-metric', text: `Bang for the Buck: ${spot.avg_bang.toFixed(1)}/5` }));
+          }
+          if (spot.address) {
+            card.append(el('p', { class: 'vg-muted', text: spot.address }));
+          }
+          grid.append(card);
+        }
+        listBox.append(grid);
+      })
+      .catch(() => {
+        listBox.innerHTML = '';
+        listBox.append(el('p', { class: 'vg-msg vg-msg--error', text: 'Spots konnten nicht geladen werden. Läuft die API?' }));
+      });
+  </script>
+</BaseLayout>

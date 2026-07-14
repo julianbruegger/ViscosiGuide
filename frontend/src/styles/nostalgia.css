@@ -1,0 +1,261 @@
+/* ============================================================================
+   ViscosiGuide — Nostalgia theme (retro Web 1.0 / early-2000s aesthetic)
+   Warm palette, chunky beveled borders, hard shadows, web-safe retro fonts.
+   ========================================================================== */
+
+:root {
+  --cream:      #f4ecd8;
+  --parchment:  #fbf6e9;
+  --ink:        #2b2118;
+  --ink-soft:   #5a4a38;
+  --tomato:     #c1442e;
+  --tomato-dk:  #99311f;
+  --mustard:    #e0a53b;
+  --olive:      #6b7a3a;
+  --teal:       #2f6d6a;
+  --grape:      #6d3d8f;
+  --panel:      #fffdf6;
+  --panel-alt:  #efe6cf;
+  --line:       #b7a586;
+  --bevel-lt:   #ffffff;
+  --bevel-dk:   #8a795c;
+  --link:       #1a3ba3;
+  --link-visited: #6d3d8f;
+
+  --shadow-hard: 4px 4px 0 rgba(43, 33, 24, 0.45);
+  --font-body: Georgia, "Times New Roman", "Nimbus Roman", serif;
+  --font-ui:   "Trebuchet MS", "Segoe UI", Verdana, sans-serif;
+  --font-mono: "Courier New", "DejaVu Sans Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html { scrollbar-color: var(--bevel-dk) var(--cream); }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.55;
+  background-color: var(--cream);
+  /* Tiled parchment pattern with a faint checker for that dithered feel. */
+  background-image:
+    radial-gradient(var(--panel-alt) 1px, transparent 1px),
+    radial-gradient(var(--panel-alt) 1px, transparent 1px);
+  background-position: 0 0, 12px 12px;
+  background-size: 24px 24px;
+}
+
+/* ---- Layout ---- */
+.vg-shell { max-width: 1080px; margin: 0 auto; padding: 0 16px 48px; }
+.vg-main { margin-top: 20px; }
+
+/* ---- Banner / marquee ---- */
+.vg-banner {
+  margin-top: 18px;
+  border: 4px ridge var(--mustard);
+  background: linear-gradient(180deg, var(--tomato), var(--tomato-dk));
+  color: #fff5e6;
+  box-shadow: var(--shadow-hard);
+  text-align: center;
+  padding: 10px 8px;
+}
+.vg-banner h1 {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 2rem;
+  letter-spacing: 2px;
+  text-shadow: 2px 2px 0 var(--tomato-dk), 3px 3px 0 rgba(0,0,0,.3);
+}
+.vg-banner .vg-tagline {
+  font-family: var(--font-mono);
+  font-size: .82rem;
+  letter-spacing: 1px;
+  color: var(--mustard);
+}
+.vg-marquee {
+  overflow: hidden;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: .8rem;
+  color: var(--ink-soft);
+  background: var(--panel-alt);
+  border: 2px inset var(--line);
+  margin-top: 10px;
+  padding: 3px 0;
+}
+.vg-marquee span {
+  display: inline-block;
+  padding-left: 100%;
+  animation: vg-scroll 26s linear infinite;
+}
+@keyframes vg-scroll { to { transform: translateX(-100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .vg-marquee span { animation: none; padding-left: 0; }
+}
+
+/* ---- Nav ---- */
+.vg-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 6px;
+  background: linear-gradient(180deg, var(--panel-alt), var(--cream));
+  border: 3px outset var(--bevel-lt);
+  box-shadow: var(--shadow-hard);
+}
+.vg-nav a {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--ink);
+  padding: 5px 12px;
+  border: 2px outset var(--bevel-lt);
+  background: var(--panel);
+}
+.vg-nav a:hover { background: var(--mustard); color: var(--ink); }
+.vg-nav a[aria-current="page"] { border-style: inset; background: var(--panel-alt); }
+.vg-nav .vg-spacer { flex: 1 1 auto; }
+.vg-nav .vg-user { font-family: var(--font-mono); font-size: .82rem; color: var(--ink-soft); }
+
+/* ---- Panels / cards ---- */
+.vg-panel {
+  background: var(--panel);
+  border: 3px solid var(--line);
+  border-top-color: var(--bevel-lt);
+  border-left-color: var(--bevel-lt);
+  border-right-color: var(--bevel-dk);
+  border-bottom-color: var(--bevel-dk);
+  box-shadow: var(--shadow-hard);
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+.vg-panel h2, .vg-panel h3 { font-family: var(--font-ui); margin-top: 0; }
+.vg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+
+.vg-card {
+  background: var(--parchment);
+  border: 2px solid var(--line);
+  border-top-color: var(--bevel-lt);
+  border-left-color: var(--bevel-lt);
+  box-shadow: 3px 3px 0 rgba(43,33,24,.25);
+  padding: 12px 14px;
+}
+.vg-card h3 { margin: 0 0 6px; font-size: 1.1rem; }
+.vg-card a { color: var(--link); }
+
+/* ---- Links ---- */
+a { color: var(--link); }
+a:visited { color: var(--link-visited); }
+a:hover { color: var(--tomato); }
+
+/* ---- Buttons ---- */
+.vg-btn {
+  display: inline-block;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: .95rem;
+  cursor: pointer;
+  color: var(--ink);
+  background: linear-gradient(180deg, #fff, var(--panel-alt));
+  border: 3px outset var(--bevel-lt);
+  padding: 7px 16px;
+  text-decoration: none;
+}
+.vg-btn:hover { background: linear-gradient(180deg, #fff, var(--mustard)); }
+.vg-btn:active { border-style: inset; transform: translate(1px, 1px); }
+.vg-btn:focus-visible { outline: 3px dashed var(--teal); outline-offset: 2px; }
+.vg-btn--primary {
+  color: #fff5e6;
+  background: linear-gradient(180deg, var(--tomato), var(--tomato-dk));
+  border-color: #ffd9a0 var(--tomato-dk) var(--tomato-dk) #ffd9a0;
+}
+.vg-btn--primary:hover { background: linear-gradient(180deg, #d4553d, var(--tomato-dk)); }
+.vg-btn[disabled] { opacity: .55; cursor: not-allowed; }
+
+/* ---- Forms ---- */
+.vg-field { margin-bottom: 14px; }
+.vg-field label {
+  display: block;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: .9rem;
+  margin-bottom: 4px;
+}
+.vg-input, .vg-select, .vg-textarea {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: #fffef9;
+  border: 2px inset var(--line);
+}
+.vg-textarea { min-height: 90px; resize: vertical; }
+.vg-input:focus, .vg-select:focus, .vg-textarea:focus {
+  outline: 2px solid var(--teal); outline-offset: 0;
+}
+.vg-hint { font-size: .8rem; color: var(--ink-soft); font-family: var(--font-mono); }
+
+/* ---- Messages ---- */
+.vg-msg { padding: 10px 12px; border: 2px solid; margin-bottom: 14px; font-family: var(--font-ui); }
+.vg-msg--error { background: #fbe3de; border-color: var(--tomato); color: var(--tomato-dk); }
+.vg-msg--ok { background: #e6efd6; border-color: var(--olive); color: #3f4a1e; }
+
+/* ---- Ratings ---- */
+.vg-stars { font-size: 1.2rem; letter-spacing: 2px; color: var(--mustard); }
+.vg-stars .empty { color: var(--line); }
+.vg-metric { font-family: var(--font-mono); font-size: .82rem; color: var(--ink-soft); }
+.vg-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 1px 7px;
+  border: 1px solid var(--bevel-dk);
+  background: var(--panel-alt);
+}
+.vg-price { color: var(--olive); font-weight: 700; }
+
+/* Star rating input widget */
+.vg-rate { display: inline-flex; flex-direction: row-reverse; gap: 2px; }
+.vg-rate input { position: absolute; opacity: 0; width: 0; height: 0; }
+.vg-rate label { font-size: 1.6rem; cursor: pointer; color: var(--line); line-height: 1; }
+.vg-rate input:checked ~ label,
+.vg-rate label:hover, .vg-rate label:hover ~ label { color: var(--mustard); }
+.vg-rate input:focus-visible + label { outline: 2px dashed var(--teal); }
+
+/* ---- Map ---- */
+#vg-map { height: 460px; border: 3px inset var(--line); background: var(--panel-alt); }
+.vg-pin {
+  width: 22px; height: 22px; border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  border: 2px solid var(--ink);
+  box-shadow: 1px 1px 0 rgba(0,0,0,.4);
+}
+.leaflet-popup-content { font-family: var(--font-ui); }
+.leaflet-container { font-family: var(--font-ui); }
+
+/* ---- Misc ---- */
+.vg-inline { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.vg-muted { color: var(--ink-soft); }
+.vg-footer {
+  margin-top: 30px; text-align: center;
+  font-family: var(--font-mono); font-size: .78rem; color: var(--ink-soft);
+}
+hr.vg-rule { border: none; border-top: 2px groove var(--line); margin: 18px 0; }
+.vg-list-reset { list-style: none; padding: 0; margin: 0; }
+table.vg-table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+table.vg-table th, table.vg-table td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; }
+table.vg-table th { background: var(--panel-alt); font-family: var(--font-ui); }
+
+@media (max-width: 620px) {
+  .vg-banner h1 { font-size: 1.4rem; }
+  body { font-size: 16px; }
+  #vg-map { height: 340px; }
+}

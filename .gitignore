@@ -1,0 +1,22 @@
+# Secrets — never commit real credentials
+api/config.php
+
+# Local dev data / logs
+*.sqlite
+*.sqlite-journal
+var/
+api/var/
+mail.log
+
+# Dependencies / build output
+/vendor/
+frontend/node_modules/
+frontend/dist/
+frontend/.astro/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/

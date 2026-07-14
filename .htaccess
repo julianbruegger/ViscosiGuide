@@ -1,0 +1,62 @@
+# ViscosiGuide — Apache config for HostPoint (place at the web root).
+
+# ----------------------------------------------------------------------------
+# Security headers
+# ----------------------------------------------------------------------------
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "same-origin"
+  Header always set Cross-Origin-Opener-Policy "same-origin"
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+  # HSTS — only meaningful over HTTPS (HostPoint provides free Let's Encrypt).
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  # Content Security Policy. script-src is strict 'self' (all JS bundled, no inline).
+  # style-src allows inline because Leaflet positions map layers via inline styles.
+  # img-src allows OSM map tiles + data: URIs.
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+  # Don't advertise the stack.
+  Header always unset X-Powered-By
+</IfModule>
+
+ServerSignature Off
+Options -Indexes -MultiViews
+
+# ----------------------------------------------------------------------------
+# Protect sensitive files
+# ----------------------------------------------------------------------------
+<FilesMatch "^(config\.php|config\.sample\.php|composer\.(json|lock))$">
+  Require all denied
+</FilesMatch>
+# Block direct access to PHP includes and DB scripts (only api/index.php is entered).
+RedirectMatch 404 ^/api/(lib|routes)/
+RedirectMatch 404 ^/db/
+RedirectMatch 404 ^/bin/
+
+# ----------------------------------------------------------------------------
+# Routing
+# ----------------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # All /api/* requests are handled by the single PHP front controller.
+  RewriteRule ^api(/.*)?$ api/index.php [L]
+
+  # Serve existing files/directories as-is.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Extensionless page → add .html (Astro "file" build format).
+  RewriteCond %{REQUEST_FILENAME}.html -f
+  RewriteRule ^(.*)$ $1.html [L]
+</IfModule>
+
+# Cache static assets aggressively; Astro fingerprints filenames.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType image/png "access plus 30 days"
+  ExpiresByType image/svg+xml "access plus 30 days"
+</IfModule>

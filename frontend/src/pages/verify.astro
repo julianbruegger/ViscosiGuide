@@ -1,0 +1,25 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="ViscosiGuide — E-Mail bestätigen" active="">
+  <section class="vg-panel" style="max-width:460px;margin:0 auto;">
+    <h2>✅ E-Mail bestätigen</h2>
+    <div id="vg-msg"><p class="vg-muted">Prüfe deinen Link…</p></div>
+    <p class="vg-hint"><a href="/login">Zum Login</a></p>
+  </section>
+
+  <script>
+    import { verifyEmail, ApiError } from '../lib/api';
+    import { showMessage } from '../lib/ui';
+
+    const msg = document.getElementById('vg-msg')!;
+    const token = new URLSearchParams(window.location.search).get('token') || '';
+    if (!token) {
+      showMessage(msg, 'Kein Bestätigungs-Token gefunden.', 'error');
+    } else {
+      verifyEmail(token)
+        .then((res) => showMessage(msg, res.message, 'ok'))
+        .catch((err) => showMessage(msg, err instanceof ApiError ? err.message : 'Bestätigung fehlgeschlagen.', 'error'));
+    }
+  </script>
+</BaseLayout>

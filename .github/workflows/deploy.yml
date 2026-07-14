@@ -1,0 +1,100 @@
+name: Deploy to HostPoint
+
+# Builds the Astro frontend + PHP dependencies and deploys them to HostPoint over
+# SSH (rsync) using an SSH user + private key. Runs on pushes to main and on manual
+# dispatch. api/config.php (DB + SMTP secrets) is generated from GitHub Secrets at
+# deploy time and is never committed to git.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-hostpoint
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run check
+          npm run build
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+
+      - name: Install PHP dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Assemble deploy directory
+        run: |
+          mkdir -p deploy
+          cp -r frontend/dist/. deploy/
+          cp -r api deploy/api
+          cp -r vendor deploy/vendor
+          cp .htaccess deploy/.htaccess
+          # Start from a clean slate — never ship a stray committed config.
+          rm -f deploy/api/config.php
+          echo "Deploy tree:" && find deploy -maxdepth 2 -type d
+
+      - name: Generate server config (DB + mail) from secrets
+        env:
+          CFG_BASE_URL:        ${{ secrets.APP_BASE_URL }}
+          CFG_DB_HOST:         ${{ secrets.DB_HOST }}
+          CFG_DB_PORT:         ${{ secrets.DB_PORT }}
+          CFG_DB_NAME:         ${{ secrets.DB_NAME }}
+          CFG_DB_USER:         ${{ secrets.DB_USER }}
+          CFG_DB_PASSWORD:     ${{ secrets.DB_PASSWORD }}
+          CFG_MAIL_FROM_EMAIL: ${{ secrets.MAIL_FROM_EMAIL }}
+          CFG_MAIL_FROM_NAME:  ${{ secrets.MAIL_FROM_NAME }}
+          CFG_SMTP_HOST:       ${{ secrets.SMTP_HOST }}
+          CFG_SMTP_PORT:       ${{ secrets.SMTP_PORT }}
+          CFG_SMTP_ENCRYPTION: ${{ secrets.SMTP_ENCRYPTION }}
+          CFG_SMTP_USERNAME:   ${{ secrets.SMTP_USERNAME }}
+          CFG_SMTP_PASSWORD:   ${{ secrets.SMTP_PASSWORD }}
+        run: |
+          php bin/make-config.php > deploy/api/config.php
+          echo "config.php generated ($(wc -c < deploy/api/config.php) bytes)"
+
+      - name: Deploy over SSH (rsync)
+        env:
+          SSH_KEY:     ${{ secrets.HOSTPOINT_SSH_PRIVATE_KEY }}
+          SSH_HOST:    ${{ secrets.HOSTPOINT_SSH_HOST }}
+          SSH_USER:    ${{ secrets.HOSTPOINT_SSH_USER }}
+          SSH_PORT:    ${{ secrets.HOSTPOINT_SSH_PORT }}
+          REMOTE_PATH: ${{ secrets.HOSTPOINT_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          PORT="${SSH_PORT:-22}"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Pin the host key for this run.
+          ssh-keyscan -p "$PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # rsync the built tree into the web root. Trailing slash on the source
+          # syncs its *contents*. --delete keeps the web root clean of stale assets;
+          # .well-known (ACME/Let's Encrypt) is preserved.
+          rsync -az --delete --exclude='.well-known/' \
+            -e "ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes" \
+            deploy/ "$SSH_USER@$SSH_HOST:$REMOTE_PATH/"
+
+          rm -f ~/.ssh/deploy_key
