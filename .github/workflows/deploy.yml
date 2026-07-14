@@ -17,6 +17,9 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    # Secrets (SSH, DB, mail) live in the "WebHosting" environment, so the job
+    # must opt into it — otherwise environment secrets resolve to empty strings.
+    environment: WebHosting
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -83,6 +86,11 @@ jobs:
           REMOTE_PATH: ${{ secrets.HOSTPOINT_REMOTE_PATH }}
         run: |
           set -euo pipefail
+          # Fail early with a clear message if a required secret is missing/empty.
+          : "${SSH_HOST:?HOSTPOINT_SSH_HOST secret is not set (WebHosting environment)}"
+          : "${SSH_USER:?HOSTPOINT_SSH_USER secret is not set (WebHosting environment)}"
+          : "${SSH_KEY:?HOSTPOINT_SSH_PRIVATE_KEY secret is not set (WebHosting environment)}"
+          : "${REMOTE_PATH:?HOSTPOINT_REMOTE_PATH secret is not set (WebHosting environment)}"
           PORT="${SSH_PORT:-22}"
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
