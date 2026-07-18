@@ -74,6 +74,7 @@ $routes = [
     ['POST', '#^/buddies$#',              'vg_route_buddies_create'],
     ['GET',  '#^/buddies/(\d+)$#',        'vg_route_buddies_get'],
     ['POST', '#^/buddies/(\d+)/join$#',   'vg_route_buddies_join'],
+    ['POST', '#^/buddies/(\d+)/order$#',  'vg_route_buddies_order'],
     ['POST', '#^/buddies/(\d+)/propose$#','vg_route_buddies_propose'],
     ['POST', '#^/buddies/(\d+)/close$#',  'vg_route_buddies_close'],
 ];

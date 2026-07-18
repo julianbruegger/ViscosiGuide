@@ -53,6 +53,46 @@ export function priceLevel(level: number): string {
   return '$'.repeat(Math.max(1, Math.min(4, level)));
 }
 
+/**
+ * Render a spot "logo": the emoji when set, otherwise a coloured monogram from
+ * the name's initials. Kept as text/CSS (no <img>) so the strict CSP is honoured.
+ */
+export function logoEl(name: string, logo: string | null | undefined): HTMLElement {
+  if (logo && logo.trim() !== '') {
+    return el('span', { class: 'vg-logo', text: logo, 'aria-hidden': 'true' });
+  }
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join('');
+  const span = el('span', { class: 'vg-logo vg-logo--mono', text: initials || '🍽️', 'aria-hidden': 'true' });
+  // Deterministic hue from the name so each spot keeps a stable colour.
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  span.style.background = `hsl(${hash % 360}, 45%, 60%)`;
+  return span;
+}
+
+/** The best "link to the location": a curated URL, else a Google Maps pin from coords. */
+export function locationLink(spot: { location_url: string | null; lat: number; lng: number }): string {
+  if (spot.location_url && spot.location_url.trim() !== '') return spot.location_url;
+  return `https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lng}`;
+}
+
+/** Labels for grill food choices (kept in sync with the API). */
+export const GRILL_CHOICE_LABELS: Record<string, string> = {
+  beef: '🥩 Rind',
+  pork: '🐷 Schwein',
+  veg: '🥗 Vegi',
+  other: '✏️ Eigenes',
+};
+
+export function grillChoiceLabel(choice: string): string {
+  return GRILL_CHOICE_LABELS[choice] ?? choice;
+}
+
 /** Show a message in a container element with a status style. */
 export function showMessage(container: HTMLElement, text: string, kind: 'ok' | 'error' = 'error'): void {
   container.innerHTML = '';

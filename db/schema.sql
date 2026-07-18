@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS food_spots (
   lat          DECIMAL(10,7) NOT NULL,
   lng          DECIMAL(10,7) NOT NULL,
   address      VARCHAR(255) DEFAULT NULL,
+  logo         VARCHAR(16)  DEFAULT NULL,   -- emoji "logo" (kept tiny; CSP forbids remote images)
+  location_url VARCHAR(500) DEFAULT NULL,   -- external map / website link for the location
   price_level  TINYINT      NOT NULL DEFAULT 2,
   created_by   INT UNSIGNED DEFAULT NULL,
   status       VARCHAR(16)  NOT NULL DEFAULT 'active',
@@ -56,17 +58,35 @@ CREATE TABLE IF NOT EXISTS ratings (
 CREATE TABLE IF NOT EXISTS buddy_requests (
   id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id       INT UNSIGNED NOT NULL,
+  type          VARCHAR(16)  NOT NULL DEFAULT 'lunch',  -- 'lunch' or 'grill'
   title         VARCHAR(120) NOT NULL,
   craving       VARCHAR(120) DEFAULT NULL,
   spot_id       INT UNSIGNED DEFAULT NULL,
   desired_time  DATETIME     DEFAULT NULL,
   location_note VARCHAR(160) DEFAULT NULL,
   status        VARCHAR(16)  NOT NULL DEFAULT 'open',
+  expires_at    DATETIME     DEFAULT NULL,             -- offer auto-expires at end of business day
   created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_buddy_status (status),
+  KEY idx_buddy_expires (expires_at),
   CONSTRAINT fk_buddy_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
   CONSTRAINT fk_buddy_spot FOREIGN KEY (spot_id) REFERENCES food_spots (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Food orders for a grill request: what each participant wants on the grill.
+CREATE TABLE IF NOT EXISTS grill_orders (
+  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  request_id  INT UNSIGNED NOT NULL,
+  user_id     INT UNSIGNED NOT NULL,
+  choice      VARCHAR(16)  NOT NULL DEFAULT 'beef',   -- 'beef' | 'pork' | 'veg' | 'other'
+  custom_text VARCHAR(120) DEFAULT NULL,              -- free-text when choice = 'other'
+  bring_own   TINYINT(1)   NOT NULL DEFAULT 0,        -- 1 = "I'm bringing it myself"
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_grill_order (request_id, user_id),
+  CONSTRAINT fk_order_req  FOREIGN KEY (request_id) REFERENCES buddy_requests (id) ON DELETE CASCADE,
+  CONSTRAINT fk_order_user FOREIGN KEY (user_id)    REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS buddy_participants (

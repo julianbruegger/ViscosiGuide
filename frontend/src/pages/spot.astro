@@ -37,7 +37,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
   <script>
     import { getMe, getSpot, listRatings, rateSpot, ApiError } from '../lib/api';
-    import { el, starsEl, categoryLabel, priceLevel, fmtDate, showMessage } from '../lib/ui';
+    import { el, starsEl, categoryLabel, priceLevel, fmtDate, showMessage, logoEl, locationLink } from '../lib/ui';
     import { createMap } from '../lib/map';
     import L from 'leaflet';
 
@@ -93,7 +93,10 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
     function renderSpot(spot: import('../lib/api').Spot) {
       spotBox.innerHTML = '';
-      spotBox.append(el('h2', { text: spot.name }));
+      const heading = el('h2');
+      heading.append(logoEl(spot.name, spot.logo));
+      heading.append(document.createTextNode(spot.name));
+      spotBox.append(heading);
 
       const badges = el('p');
       badges.append(el('span', { class: 'vg-badge', text: categoryLabel(spot.category) }));
@@ -117,6 +120,17 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
       if (spot.description) spotBox.append(el('p', { text: spot.description }));
       if (spot.address) spotBox.append(el('p', { class: 'vg-muted', text: '📍 ' + spot.address }));
+
+      const locP = el('p');
+      locP.append(el('a', {
+        href: locationLink(spot),
+        target: '_blank',
+        rel: 'noopener noreferrer',
+        class: 'vg-btn',
+        text: '📍 Standort auf Karte öffnen',
+      }));
+      spotBox.append(locP);
+
       if (spot.created_by_name) spotBox.append(el('p', { class: 'vg-hint', text: 'Erfasst von ' + spot.created_by_name }));
 
       const mapDiv = el('div', { id: 'vg-map' });

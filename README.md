@@ -6,6 +6,21 @@ the Buck*), eigene Spots erfassen, Konten mit E-Mail-Login — und **Food-Buddie
 sag, worauf du Lust hast, andere joinen oder schlagen einen Spot vor. Mit
 E-Mail-Benachrichtigungen.
 
+### Features
+
+- **Restaurant-Index rund um Viscosi** — Demo-Seed mit Spots rund um die
+  Viscosistrasse / Emmenbrücke. Jeder Spot hat ein **Emoji-Logo** und einen
+  **Link zum Standort** (Google-Maps-Pin, oder eine eigene kuratierte URL).
+  Logos sind Emoji/Text (kein `<img>`), damit die strikte CSP intakt bleibt;
+  ohne Logo wird ein farbiges Monogramm aus den Initialen erzeugt.
+- **Grill-Angebote mit Essensbestellung** — eine Food-Buddy-Anfrage kann vom Typ
+  `lunch` oder `grill` sein. Bei einem Grill bestellt jede/r Teilnehmer/in
+  **Rind, Schwein, Vegi oder etwas Eigenes** und kann das Flag „bringe ich selbst
+  mit“ setzen. Der Host sieht eine Bestell-Übersicht (Zählung pro Sorte).
+- **Angebote laufen ab** — Food-Buddy-Angebote verfallen automatisch am **Ende des
+  Geschäftstags** (heute 23:59:59). Abgelaufene Angebote verschwinden aus der Liste
+  und lassen sich nicht mehr joinen/bestellen.
+
 ## Architektur
 
 | Schicht    | Technologie                                                    |
@@ -60,6 +75,9 @@ wegen SameSite=Strict aber am besten über den kombinierten Server oben).
 
 1. **Datenbank:** In der HostPoint-Systemverwaltung eine MariaDB-Datenbank + Benutzer
    anlegen. `db/schema.sql` via phpMyAdmin importieren (optional `db/seed.sql`).
+   Für eine **bestehende** DB (aus einer früheren Version) einmalig die Migration
+   `db/migrations/001_grill_logos_expiry.sql` einspielen — sie ergänzt Logos,
+   Standort-Links, Grill-Typ/Bestellungen und die Ablauf-Spalte.
 2. **E-Mail:** Ein Postfach (z. B. `noreply@deine-domain.ch`) erstellen. HostPoint-SMTP:
    `asmtp.mail.hostpoint.ch`, Port `587`, STARTTLS.
 3. **SSH-Key:** In der HostPoint-Verwaltung SSH/SFTP aktivieren und den **öffentlichen

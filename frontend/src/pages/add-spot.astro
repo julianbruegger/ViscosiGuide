@@ -30,9 +30,20 @@ import { CATEGORIES, categoryLabel } from '../lib/ui';
           </select>
         </div>
       </div>
+      <div class="vg-inline">
+        <div class="vg-field" style="flex:0 0 130px">
+          <label for="logo">Logo (Emoji)</label>
+          <input id="logo" class="vg-input" maxlength="16" placeholder="🍕" />
+        </div>
+        <div class="vg-field" style="flex:1">
+          <label for="address">Adresse (optional)</label>
+          <input id="address" class="vg-input" maxlength="255" />
+        </div>
+      </div>
       <div class="vg-field">
-        <label for="address">Adresse (optional)</label>
-        <input id="address" class="vg-input" maxlength="255" />
+        <label for="location_url">Link zum Standort (optional)</label>
+        <input id="location_url" class="vg-input" type="url" maxlength="500" placeholder="https://maps.google.com/…" />
+        <p class="vg-hint">Leer lassen → wir verlinken automatisch auf die Kartenposition.</p>
       </div>
       <div class="vg-field">
         <label for="description">Beschreibung (optional)</label>
@@ -95,6 +106,8 @@ import { CATEGORIES, categoryLabel } from '../lib/ui';
           price_level: Number((document.getElementById('price_level') as HTMLSelectElement).value),
           description: (document.getElementById('description') as HTMLTextAreaElement).value.trim() || undefined,
           address: (document.getElementById('address') as HTMLInputElement).value.trim() || undefined,
+          logo: (document.getElementById('logo') as HTMLInputElement).value.trim() || undefined,
+          location_url: (document.getElementById('location_url') as HTMLInputElement).value.trim() || undefined,
         });
         window.location.href = '/spot?id=' + spot.id;
       } catch (err) {
