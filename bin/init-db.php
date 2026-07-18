@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS food_spots (
   address TEXT,
   logo TEXT,
   location_url TEXT,
+  website TEXT,
   price_level INTEGER NOT NULL DEFAULT 2,
   created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'active',
@@ -114,6 +115,7 @@ SQL);
 // (CREATE TABLE IF NOT EXISTS above leaves pre-existing tables untouched.)
 vg_add_column_if_missing($db, 'food_spots', 'logo', "VARCHAR(16) DEFAULT NULL");
 vg_add_column_if_missing($db, 'food_spots', 'location_url', "VARCHAR(500) DEFAULT NULL");
+vg_add_column_if_missing($db, 'food_spots', 'website', "VARCHAR(255) DEFAULT NULL");
 vg_add_column_if_missing($db, 'buddy_requests', 'type', "VARCHAR(16) NOT NULL DEFAULT 'lunch'");
 vg_add_column_if_missing($db, 'buddy_requests', 'expires_at', "DATETIME DEFAULT NULL");
 

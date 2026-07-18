@@ -28,8 +28,9 @@ CREATE TABLE IF NOT EXISTS food_spots (
   lat          DECIMAL(10,7) NOT NULL,
   lng          DECIMAL(10,7) NOT NULL,
   address      VARCHAR(255) DEFAULT NULL,
-  logo         VARCHAR(16)  DEFAULT NULL,   -- emoji "logo" (kept tiny; CSP forbids remote images)
-  location_url VARCHAR(500) DEFAULT NULL,   -- external map / website link for the location
+  logo         VARCHAR(16)  DEFAULT NULL,   -- optional emoji fallback when no brand logo is available
+  location_url VARCHAR(500) DEFAULT NULL,   -- external map link for the location
+  website      VARCHAR(255) DEFAULT NULL,   -- company website/domain; brand logo is derived from its favicon
   price_level  TINYINT      NOT NULL DEFAULT 2,
   created_by   INT UNSIGNED DEFAULT NULL,
   status       VARCHAR(16)  NOT NULL DEFAULT 'active',

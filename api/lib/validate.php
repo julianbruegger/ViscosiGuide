@@ -80,6 +80,34 @@ function vg_opt_url(array $data, string $key, int $max = 500): ?string
     return $val;
 }
 
+/**
+ * Fetch an optional website (empty → null): accepts a bare domain or an http(s)
+ * URL, normalises to a lowercase hostname, and rejects anything that isn't a
+ * plausible domain. The brand logo is derived from this on the frontend.
+ */
+function vg_opt_website(array $data, string $key = 'website', int $max = 255): ?string
+{
+    $val = vg_opt_string($data, $key, $max);
+    if ($val === null) {
+        return null;
+    }
+    $val = strtolower($val);
+    // Peel off a scheme/path if a full URL was pasted in.
+    if (preg_match('#^https?://#', $val)) {
+        $host = parse_url($val, PHP_URL_HOST);
+        if (!is_string($host) || $host === '') {
+            vg_error("Field '$key' must be a valid website or domain.", 422);
+        }
+        $val = $host;
+    }
+    $val = preg_replace('#^www\.#', '', $val);
+    // A domain: labels of letters/digits/hyphens separated by dots, with a TLD.
+    if (!preg_match('/^(?=.{1,253}$)([a-z0-9](-?[a-z0-9])*\.)+[a-z]{2,}$/', $val)) {
+        vg_error("Field '$key' must be a valid website or domain.", 422);
+    }
+    return $val;
+}
+
 /** Enforce a minimum password policy. */
 function vg_req_password(array $data, string $key = 'password'): string
 {

@@ -170,6 +170,13 @@ body {
   text-shadow: 1px 1px 0 rgba(0, 0, 0, .35);
   box-shadow: 1px 1px 0 rgba(0, 0, 0, .3);
 }
+.vg-logo--img {
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px;
+}
 .vg-logo--lg { width: 2.2em; height: 2.2em; font-size: 1.7em; }
 .vg-logo--lg.vg-logo--mono { font-size: 1em; }
 
