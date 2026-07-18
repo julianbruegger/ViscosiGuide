@@ -22,6 +22,7 @@ export interface Spot {
   address: string | null;
   logo: string | null;
   location_url: string | null;
+  website: string | null;
   price_level: number;
   created_by: number | null;
   created_by_name: string | null;
@@ -209,6 +210,7 @@ export async function createSpot(input: {
   address?: string;
   logo?: string;
   location_url?: string;
+  website?: string;
 }): Promise<Spot> {
   const data = await request<{ spot: Spot }>('/spots', {
     method: 'POST',

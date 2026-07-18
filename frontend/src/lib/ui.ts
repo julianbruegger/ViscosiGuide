@@ -53,14 +53,30 @@ export function priceLevel(level: number): string {
   return '$'.repeat(Math.max(1, Math.min(4, level)));
 }
 
-/**
- * Render a spot "logo": the emoji when set, otherwise a coloured monogram from
- * the name's initials. Kept as text/CSS (no <img>) so the strict CSP is honoured.
- */
-export function logoEl(name: string, logo: string | null | undefined): HTMLElement {
-  if (logo && logo.trim() !== '') {
-    return el('span', { class: 'vg-logo', text: logo, 'aria-hidden': 'true' });
+/** Normalise a website/domain into DuckDuckGo's icon URL, or null if unusable. */
+export function faviconUrl(website: string | null | undefined): string | null {
+  if (!website) return null;
+  let host = website.trim().toLowerCase();
+  if (host === '') return null;
+  try {
+    if (!/^https?:\/\//.test(host)) host = 'https://' + host;
+    host = new URL(host).hostname;
+  } catch {
+    return null;
   }
+  host = host.replace(/^www\./, '');
+  if (!host.includes('.')) return null;
+  return `https://icons.duckduckgo.com/ip3/${host}.ico`;
+}
+
+interface SpotLogoLike {
+  name: string;
+  logo?: string | null;
+  website?: string | null;
+}
+
+/** A coloured monogram from a name's initials (final fallback, no network). */
+function monogramEl(name: string): HTMLElement {
   const initials = name
     .split(/\s+/)
     .filter(Boolean)
@@ -73,6 +89,35 @@ export function logoEl(name: string, logo: string | null | undefined): HTMLEleme
   for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
   span.style.background = `hsl(${hash % 360}, 45%, 60%)`;
   return span;
+}
+
+/**
+ * Render a spot "logo":
+ *   1. the company's real brand logo (its site favicon) when a website is set,
+ *   2. an emoji when one is provided,
+ *   3. a coloured monogram from the name's initials.
+ * The favicon <img> falls back to the emoji/monogram if it fails to load, so a
+ * missing or broken icon never leaves an empty box.
+ */
+export function logoEl(spot: SpotLogoLike): HTMLElement {
+  const fallback = (): HTMLElement =>
+    spot.logo && spot.logo.trim() !== ''
+      ? el('span', { class: 'vg-logo', text: spot.logo, 'aria-hidden': 'true' })
+      : monogramEl(spot.name);
+
+  const fav = faviconUrl(spot.website);
+  if (!fav) return fallback();
+
+  const img = el('img', {
+    class: 'vg-logo vg-logo--img',
+    src: fav,
+    alt: spot.name + ' Logo',
+    loading: 'lazy',
+    width: '32',
+    height: '32',
+  }) as HTMLImageElement;
+  img.addEventListener('error', () => img.replaceWith(fallback()));
+  return img;
 }
 
 /** The best "link to the location": a curated URL, else a Google Maps pin from coords. */

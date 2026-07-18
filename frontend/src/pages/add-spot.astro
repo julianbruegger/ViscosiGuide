@@ -30,9 +30,14 @@ import { CATEGORIES, categoryLabel } from '../lib/ui';
           </select>
         </div>
       </div>
+      <div class="vg-field">
+        <label for="website">Webseite (optional)</label>
+        <input id="website" class="vg-input" maxlength="255" placeholder="z.B. migros.ch" />
+        <p class="vg-hint">Wir zeigen automatisch das Logo der Firma (aus deren Webseite).</p>
+      </div>
       <div class="vg-inline">
         <div class="vg-field" style="flex:0 0 130px">
-          <label for="logo">Logo (Emoji)</label>
+          <label for="logo">Emoji-Fallback</label>
           <input id="logo" class="vg-input" maxlength="16" placeholder="🍕" />
         </div>
         <div class="vg-field" style="flex:1">
@@ -108,6 +113,7 @@ import { CATEGORIES, categoryLabel } from '../lib/ui';
           address: (document.getElementById('address') as HTMLInputElement).value.trim() || undefined,
           logo: (document.getElementById('logo') as HTMLInputElement).value.trim() || undefined,
           location_url: (document.getElementById('location_url') as HTMLInputElement).value.trim() || undefined,
+          website: (document.getElementById('website') as HTMLInputElement).value.trim() || undefined,
         });
         window.location.href = '/spot?id=' + spot.id;
       } catch (err) {

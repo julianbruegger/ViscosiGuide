@@ -9,10 +9,14 @@ E-Mail-Benachrichtigungen.
 ### Features
 
 - **Restaurant-Index rund um Viscosi** — Demo-Seed mit Spots rund um die
-  Viscosistrasse / Emmenbrücke. Jeder Spot hat ein **Emoji-Logo** und einen
-  **Link zum Standort** (Google-Maps-Pin, oder eine eigene kuratierte URL).
-  Logos sind Emoji/Text (kein `<img>`), damit die strikte CSP intakt bleibt;
-  ohne Logo wird ein farbiges Monogramm aus den Initialen erzeugt.
+  Viscosistrasse / Emmenbrücke. Jeder Spot hat einen **Link zum Standort**
+  (Google-Maps-Pin, oder eine eigene kuratierte URL).
+- **Echte Firmen-Logos** — hat ein Spot eine **Webseite** hinterlegt, wird sein
+  **Markenlogo automatisch aus dem Favicon der Firma** geladen (via
+  `icons.duckduckgo.com`; ein Host, den die `img-src`-CSP gezielt erlaubt — siehe
+  `.htaccess`). Fehlt eine Webseite oder lädt das Icon nicht, greift ein
+  **Emoji-Fallback** und zuletzt ein farbiges **Monogramm** aus den Initialen.
+  Der Icon-Host lässt sich in `frontend/src/lib/ui.ts` (`faviconUrl`) tauschen.
 - **Grill-Angebote mit Essensbestellung** — eine Food-Buddy-Anfrage kann vom Typ
   `lunch` oder `grill` sein. Bei einem Grill bestellt jede/r Teilnehmer/in
   **Rind, Schwein, Vegi oder etwas Eigenes** und kann das Flag „bringe ich selbst
@@ -75,9 +79,10 @@ wegen SameSite=Strict aber am besten über den kombinierten Server oben).
 
 1. **Datenbank:** In der HostPoint-Systemverwaltung eine MariaDB-Datenbank + Benutzer
    anlegen. `db/schema.sql` via phpMyAdmin importieren (optional `db/seed.sql`).
-   Für eine **bestehende** DB (aus einer früheren Version) einmalig die Migration
-   `db/migrations/001_grill_logos_expiry.sql` einspielen — sie ergänzt Logos,
-   Standort-Links, Grill-Typ/Bestellungen und die Ablauf-Spalte.
+   Für eine **bestehende** DB (aus einer früheren Version) die Migrationen in
+   `db/migrations/` der Reihe nach einspielen — `001_grill_logos_expiry.sql`
+   (Logos, Standort-Links, Grill-Typ/Bestellungen, Ablauf-Spalte) und
+   `002_spot_website.sql` (Webseite/Firmenlogo pro Spot).
 2. **E-Mail:** Ein Postfach (z. B. `noreply@deine-domain.ch`) erstellen. HostPoint-SMTP:
    `asmtp.mail.hostpoint.ch`, Port `587`, STARTTLS.
 3. **SSH-Key:** In der HostPoint-Verwaltung SSH/SFTP aktivieren und den **öffentlichen

@@ -13,8 +13,8 @@
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
   # Content Security Policy. script-src is strict 'self' (all JS bundled, no inline).
   # style-src allows inline because Leaflet positions map layers via inline styles.
-  # img-src allows OSM map tiles + data: URIs.
-  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+  # img-src allows OSM map tiles, data: URIs, and DuckDuckGo's icon service (brand logos).
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org https://icons.duckduckgo.com; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
   # Don't advertise the stack.
   Header always unset X-Powered-By
 </IfModule>

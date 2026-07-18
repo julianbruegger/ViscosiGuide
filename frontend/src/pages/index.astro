@@ -35,7 +35,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         for (const spot of spots) {
           const card = el('article', { class: 'vg-card' });
           const h = el('h3');
-          h.append(logoEl(spot.name, spot.logo));
+          h.append(logoEl(spot));
           const link = el('a', { href: '/spot?id=' + spot.id, text: spot.name });
           h.append(link);
           card.append(h);

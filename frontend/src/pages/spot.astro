@@ -94,7 +94,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     function renderSpot(spot: import('../lib/api').Spot) {
       spotBox.innerHTML = '';
       const heading = el('h2');
-      heading.append(logoEl(spot.name, spot.logo));
+      heading.append(logoEl(spot));
       heading.append(document.createTextNode(spot.name));
       spotBox.append(heading);
 
@@ -130,6 +130,17 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         text: '📍 Standort auf Karte öffnen',
       }));
       spotBox.append(locP);
+
+      if (spot.website) {
+        const webP = el('p');
+        webP.append(el('a', {
+          href: /^https?:\/\//.test(spot.website) ? spot.website : 'https://' + spot.website,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+          text: '🌐 ' + spot.website.replace(/^https?:\/\//, ''),
+        }));
+        spotBox.append(webP);
+      }
 
       if (spot.created_by_name) spotBox.append(el('p', { class: 'vg-hint', text: 'Erfasst von ' + spot.created_by_name }));
 
