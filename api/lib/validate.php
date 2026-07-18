@@ -67,6 +67,19 @@ function vg_req_float(array $data, string $key, float $min, float $max): float
     return $f;
 }
 
+/** Fetch an optional http(s) URL (empty → null), capped at $max, or 422. */
+function vg_opt_url(array $data, string $key, int $max = 500): ?string
+{
+    $val = vg_opt_string($data, $key, $max);
+    if ($val === null) {
+        return null;
+    }
+    if (!preg_match('#^https?://#i', $val) || filter_var($val, FILTER_VALIDATE_URL) === false) {
+        vg_error("Field '$key' must be a valid http(s) URL.", 422);
+    }
+    return $val;
+}
+
 /** Enforce a minimum password policy. */
 function vg_req_password(array $data, string $key = 'password'): string
 {

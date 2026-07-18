@@ -148,6 +148,31 @@ body {
 .vg-card h3 { margin: 0 0 6px; font-size: 1.1rem; }
 .vg-card a { color: var(--link); }
 
+/* ---- Logos ---- */
+.vg-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6em;
+  height: 1.6em;
+  font-size: 1.1em;
+  line-height: 1;
+  vertical-align: -0.35em;
+  margin-right: 6px;
+}
+.vg-logo--mono {
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: .7em;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, .35);
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, .3);
+}
+.vg-logo--lg { width: 2.2em; height: 2.2em; font-size: 1.7em; }
+.vg-logo--lg.vg-logo--mono { font-size: 1em; }
+
 /* ---- Links ---- */
 a { color: var(--link); }
 a:visited { color: var(--link-visited); }

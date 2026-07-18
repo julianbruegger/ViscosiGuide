@@ -7,9 +7,10 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   <script>
     import {
       getMe, listBuddies, getBuddy, createBuddy, joinBuddy, proposeBuddy, closeBuddy,
-      listSpots, ApiError, type User, type Spot, type Buddy,
+      orderGrill, listSpots, ApiError,
+      type User, type Spot, type Buddy, type GrillChoice,
     } from '../lib/api';
-    import { el, fmtDate, showMessage } from '../lib/ui';
+    import { el, fmtDate, showMessage, grillChoiceLabel } from '../lib/ui';
 
     const view = document.getElementById('vg-view')!;
     let me: User | null = null;
@@ -49,6 +50,12 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         const msg = el('div');
         const form = el('form') as HTMLFormElement;
 
+        const typeField = field('Was planst du?');
+        const typeSel = el('select', { id: 'vg-ctype', class: 'vg-select' }) as HTMLSelectElement;
+        typeSel.append(el('option', { value: 'lunch', text: '🍜 Lunch (Spot besuchen)' }));
+        typeSel.append(el('option', { value: 'grill', text: '🔥 Grillen (mit Essensbestellung)' }));
+        typeField.append(typeSel);
+
         const titleField = field('Worum geht’s? *');
         const title = el('input', { class: 'vg-input', maxlength: '120', placeholder: 'z.B. Wer kommt mit zum Thai?' }) as HTMLInputElement;
         titleField.append(title);
@@ -69,14 +76,17 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         const note = el('input', { class: 'vg-input', maxlength: '160', placeholder: 'Treffpunkt Lobby, 12:00…' }) as HTMLInputElement;
         noteField.append(note);
 
+        const expiryHint = el('p', { class: 'vg-hint', text: '⏳ Angebote laufen am Ende des Geschäftstags automatisch ab.' });
+
         const submit = el('button', { type: 'submit', class: 'vg-btn vg-btn--primary', text: 'Anfrage starten' });
-        form.append(titleField, cravingField, spotField, timeField, noteField, submit);
+        form.append(typeField, titleField, cravingField, spotField, timeField, noteField, expiryHint, submit);
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
           if (title.value.trim().length < 3) { showMessage(msg, 'Bitte einen Titel eingeben (min. 3 Zeichen).', 'error'); return; }
           try {
             const b = await createBuddy({
               title: title.value.trim(),
+              type: typeSel.value === 'grill' ? 'grill' : 'lunch',
               craving: craving.value.trim() || undefined,
               spot_id: spotSel.value ? Number(spotSel.value) : null,
               desired_time: time.value || null,
@@ -107,9 +117,13 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     function buddyCard(b: Buddy): HTMLElement {
       const card = el('article', { class: 'vg-card' });
       const h = el('h3');
-      h.append(el('a', { href: '/buddies?id=' + b.id, text: b.title }));
+      const icon = b.type === 'grill' ? '🔥 ' : '';
+      h.append(el('a', { href: '/buddies?id=' + b.id, text: icon + b.title }));
       card.append(h);
-      if (b.craving) card.append(el('p', { class: 'vg-badge', text: b.craving }));
+      const badges = el('p');
+      if (b.type === 'grill') badges.append(el('span', { class: 'vg-badge', text: 'Grill' }), document.createTextNode(' '));
+      if (b.craving) badges.append(el('span', { class: 'vg-badge', text: b.craving }));
+      if (b.craving || b.type === 'grill') card.append(badges);
       const meta = el('p', { class: 'vg-metric' });
       const bits = [`Host: ${b.host_name}`, `${b.participant_count} dabei`];
       if (b.spot_name) bits.push(`@ ${b.spot_name}`);
@@ -117,6 +131,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       meta.textContent = bits.join(' · ');
       card.append(meta);
       if (b.location_note) card.append(el('p', { class: 'vg-muted', text: b.location_note }));
+      if (b.expires_at) card.append(el('p', { class: 'vg-hint', text: '⏳ gültig bis ' + fmtDate(b.expires_at) }));
       return card;
     }
 
@@ -127,19 +142,25 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       catch { view.innerHTML = ''; view.append(el('p', { class: 'vg-msg vg-msg--error', text: 'Anfrage nicht gefunden.' })); return; }
 
       view.innerHTML = '';
+      const isGrill = b.type === 'grill';
+      const expired = b.is_expired === true;
+      const active = b.status === 'open' && !expired;
       const panel = el('section', { class: 'vg-panel' });
       panel.append(el('p', {}, [el('a', { href: '/buddies', text: '← Alle Anfragen' })]));
-      panel.append(el('h2', { text: b.title }));
+      panel.append(el('h2', { text: (isGrill ? '🔥 ' : '') + b.title }));
       if (b.status !== 'open') panel.append(el('p', { class: 'vg-badge', text: 'GESCHLOSSEN' }));
+      else if (expired) panel.append(el('p', { class: 'vg-badge', text: 'ABGELAUFEN' }));
 
       const meta = el('p', { class: 'vg-metric' });
       const bits = [`Host: ${b.host_name}`];
+      if (isGrill) bits.push('Grill 🔥');
       if (b.craving) bits.push(`Lust auf: ${b.craving}`);
       if (b.spot_name) bits.push(`Spot: ${b.spot_name}`);
       if (b.desired_time) bits.push(`Zeit: ${fmtDate(b.desired_time)}`);
       meta.textContent = bits.join(' · ');
       panel.append(meta);
       if (b.location_note) panel.append(el('p', { class: 'vg-muted', text: '📍 ' + b.location_note }));
+      if (b.expires_at) panel.append(el('p', { class: 'vg-hint', text: '⏳ ' + (expired ? 'Abgelaufen am ' : 'Läuft ab am ') + fmtDate(b.expires_at) }));
 
       // Participants
       panel.append(el('h3', { text: `Dabei (${b.participants?.length ?? 0})` }));
@@ -147,13 +168,18 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       for (const p of b.participants ?? []) plist.append(el('li', { text: '🙋 ' + p.name }));
       panel.append(plist);
 
+      // Grill orders
+      if (isGrill) panel.append(grillOrdersBlock(b));
+
       // Actions
       const msg = el('div');
       panel.append(msg);
-      if (me && b.status === 'open') {
+      if (me && active) {
         const joined = (b.participants ?? []).some((p) => p.name === me!.display_name);
         const actions = el('div', { class: 'vg-inline' });
-        if (!joined) {
+        if (isGrill) {
+          panel.append(grillOrderForm(id, b, msg));
+        } else if (!joined) {
           const joinBtn = el('button', { class: 'vg-btn vg-btn--primary', text: '🙋 Ich komme mit' });
           joinBtn.addEventListener('click', async () => {
             try { await joinBuddy(id); await renderDetail(id); }
@@ -193,7 +219,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         propPanel.append(c);
       }
 
-      if (me && b.status === 'open') {
+      if (me && active) {
         const pMsg = el('div');
         const pForm = el('form') as HTMLFormElement;
         pForm.append(el('h3', { text: 'Vorschlag machen' }));
@@ -218,6 +244,94 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         propPanel.append(pMsg, pForm);
       }
       view.append(propPanel);
+    }
+
+    // ---- Grill: order summary + list ----------------------------------------
+    function grillOrdersBlock(b: Buddy): HTMLElement {
+      const wrap = el('div');
+      wrap.append(el('h3', { text: `🍖 Bestellungen (${b.orders?.length ?? 0})` }));
+
+      const s = b.order_summary;
+      if (s) {
+        const summary = el('p', { class: 'vg-metric' });
+        const parts = [
+          `${grillChoiceLabel('beef')}: ${s.beef}`,
+          `${grillChoiceLabel('pork')}: ${s.pork}`,
+          `${grillChoiceLabel('veg')}: ${s.veg}`,
+          `${grillChoiceLabel('other')}: ${s.other}`,
+        ];
+        summary.textContent = parts.join(' · ') + (s.bring_own ? ` · 🛍️ ${s.bring_own} bringen selbst mit` : '');
+        wrap.append(summary);
+      }
+
+      if ((b.orders?.length ?? 0) === 0) {
+        wrap.append(el('p', { class: 'vg-muted', text: 'Noch keine Bestellungen.' }));
+      } else {
+        const list = el('ul', { class: 'vg-list-reset' });
+        for (const o of b.orders ?? []) {
+          const label = o.choice === 'other' && o.custom_text ? `✏️ ${o.custom_text}` : grillChoiceLabel(o.choice);
+          const own = o.bring_own ? ' · 🛍️ bringt selbst mit' : '';
+          list.append(el('li', { text: `🍽️ ${o.name}: ${label}${own}` }));
+        }
+        wrap.append(list);
+      }
+      return wrap;
+    }
+
+    // ---- Grill: place / update my order -------------------------------------
+    function grillOrderForm(reqId: number, b: Buddy, outerMsg: HTMLElement): HTMLElement {
+      const mine = me ? (b.orders ?? []).find((o) => o.name === me!.display_name) : undefined;
+
+      const form = el('form') as HTMLFormElement;
+      form.append(el('h3', { text: mine ? '🔥 Deine Bestellung ändern' : '🔥 Mitgrillen — was darf’s sein?' }));
+
+      const choiceField = field('Deine Wahl');
+      const choiceSel = el('select', { class: 'vg-select' }) as HTMLSelectElement;
+      for (const c of ['beef', 'pork', 'veg', 'other'] as GrillChoice[]) {
+        choiceSel.append(el('option', { value: c, text: grillChoiceLabel(c) }));
+      }
+      if (mine) choiceSel.value = mine.choice;
+      choiceField.append(choiceSel);
+
+      const customField = field('Was genau? (bei „Eigenes“)');
+      const custom = el('input', { class: 'vg-input', maxlength: '120', placeholder: 'z.B. Poulet-Spiessli' }) as HTMLInputElement;
+      if (mine?.custom_text) custom.value = mine.custom_text;
+      customField.append(custom);
+
+      const ownField = field('');
+      const ownLabel = el('label', { class: 'vg-inline' });
+      const own = el('input', { type: 'checkbox' }) as HTMLInputElement;
+      if (mine?.bring_own) own.checked = true;
+      ownLabel.append(own, document.createTextNode(' 🛍️ Ich bringe es selbst mit'));
+      ownField.innerHTML = '';
+      ownField.append(ownLabel);
+
+      const syncCustom = () => { customField.hidden = choiceSel.value !== 'other'; };
+      choiceSel.addEventListener('change', syncCustom);
+      syncCustom();
+
+      const submit = el('button', { type: 'submit', class: 'vg-btn vg-btn--primary', text: mine ? 'Bestellung aktualisieren' : 'Bestellen & mitgrillen' });
+      form.append(choiceField, customField, ownField, submit);
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const choice = choiceSel.value as GrillChoice;
+        if (choice === 'other' && custom.value.trim() === '') {
+          showMessage(outerMsg, 'Bitte beschreibe, was du möchtest.', 'error');
+          return;
+        }
+        try {
+          await orderGrill(reqId, {
+            choice,
+            custom_text: choice === 'other' ? custom.value.trim() : undefined,
+            bring_own: own.checked,
+          });
+          await renderDetail(reqId);
+        } catch (err) {
+          showMessage(outerMsg, err instanceof ApiError ? err.message : 'Fehlgeschlagen.', 'error');
+        }
+      });
+      return form;
     }
 
     function field(labelText: string): HTMLElement {

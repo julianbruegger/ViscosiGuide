@@ -12,7 +12,7 @@ function vg_spot_select(): string
 {
     return
         'SELECT s.id, s.name, s.description, s.category, s.lat, s.lng, s.address,
-                s.price_level, s.created_by, s.created_at,
+                s.logo, s.location_url, s.price_level, s.created_by, s.created_at,
                 u.display_name AS created_by_name,
                 COUNT(r.id)            AS rating_count,
                 AVG(r.rating)         AS avg_rating,
@@ -34,6 +34,8 @@ function vg_spot_public(array $row): array
         'lat'            => (float) $row['lat'],
         'lng'            => (float) $row['lng'],
         'address'        => $row['address'],
+        'logo'           => $row['logo'] ?? null,
+        'location_url'   => $row['location_url'] ?? null,
         'price_level'    => (int) $row['price_level'],
         'created_by'     => $row['created_by'] !== null ? (int) $row['created_by'] : null,
         'created_by_name' => $row['created_by_name'],
@@ -62,7 +64,7 @@ function vg_route_spots_list(): void
     }
 
     $sql .= ' GROUP BY s.id, s.name, s.description, s.category, s.lat, s.lng, s.address,
-                       s.price_level, s.created_by, s.created_at, u.display_name
+                       s.logo, s.location_url, s.price_level, s.created_by, s.created_at, u.display_name
               ORDER BY s.name ASC';
 
     $stmt = $db->prepare($sql);
@@ -74,7 +76,7 @@ function vg_route_spots_list(): void
 function vg_route_spots_get(string $id): void
 {
     $stmt = vg_db()->prepare(vg_spot_select() . ' WHERE s.id = ? GROUP BY s.id, s.name, s.description,
-        s.category, s.lat, s.lng, s.address, s.price_level, s.created_by, s.created_at, u.display_name');
+        s.category, s.lat, s.lng, s.address, s.logo, s.location_url, s.price_level, s.created_by, s.created_at, u.display_name');
     $stmt->execute([(int) $id]);
     $row = $stmt->fetch();
     if (!$row) {
@@ -99,12 +101,14 @@ function vg_route_spots_create(): void
     $priceLevel = vg_req_int($data, 'price_level', 1, 4);
     $description = vg_opt_string($data, 'description', 2000);
     $address = vg_opt_string($data, 'address', 255);
+    $logo = vg_opt_string($data, 'logo', 16);
+    $locationUrl = vg_opt_url($data, 'location_url', 500);
 
     $ins = vg_db()->prepare(
-        'INSERT INTO food_spots (name, description, category, lat, lng, address, price_level, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO food_spots (name, description, category, lat, lng, address, logo, location_url, price_level, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
-    $ins->execute([$name, $description, $category, $lat, $lng, $address, $priceLevel, $user['id']]);
+    $ins->execute([$name, $description, $category, $lat, $lng, $address, $logo, $locationUrl, $priceLevel, $user['id']]);
     $newId = (int) vg_db()->lastInsertId();
 
     vg_route_spots_get((string) $newId);
@@ -135,11 +139,13 @@ function vg_route_spots_update(string $id): void
     $priceLevel = vg_req_int($data, 'price_level', 1, 4);
     $description = vg_opt_string($data, 'description', 2000);
     $address = vg_opt_string($data, 'address', 255);
+    $logo = vg_opt_string($data, 'logo', 16);
+    $locationUrl = vg_opt_url($data, 'location_url', 500);
 
     $upd = $db->prepare(
-        'UPDATE food_spots SET name = ?, description = ?, category = ?, address = ?, price_level = ? WHERE id = ?'
+        'UPDATE food_spots SET name = ?, description = ?, category = ?, address = ?, logo = ?, location_url = ?, price_level = ? WHERE id = ?'
     );
-    $upd->execute([$name, $description, $category, $address, $priceLevel, (int) $id]);
+    $upd->execute([$name, $description, $category, $address, $logo, $locationUrl, $priceLevel, (int) $id]);
 
     vg_route_spots_get($id);
 }

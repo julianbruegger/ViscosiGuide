@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS food_spots (
   lat REAL NOT NULL,
   lng REAL NOT NULL,
   address TEXT,
+  logo TEXT,
+  location_url TEXT,
   price_level INTEGER NOT NULL DEFAULT 2,
   created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'active',
@@ -60,13 +62,25 @@ CREATE TABLE IF NOT EXISTS ratings (
 CREATE TABLE IF NOT EXISTS buddy_requests (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL DEFAULT 'lunch',
   title TEXT NOT NULL,
   craving TEXT,
   spot_id INTEGER REFERENCES food_spots(id) ON DELETE SET NULL,
   desired_time TEXT,
   location_note TEXT,
   status TEXT NOT NULL DEFAULT 'open',
+  expires_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS grill_orders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  request_id INTEGER NOT NULL REFERENCES buddy_requests(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  choice TEXT NOT NULL DEFAULT 'beef',
+  custom_text TEXT,
+  bring_own INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (request_id, user_id)
 );
 CREATE TABLE IF NOT EXISTS buddy_participants (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,6 +108,37 @@ SQL);
     $sql = file_get_contents(__DIR__ . '/../db/schema.sql');
     $db->exec($sql);
     echo "MySQL schema applied.\n";
+}
+
+// Idempotent column top-up for databases created before the grill/logo update.
+// (CREATE TABLE IF NOT EXISTS above leaves pre-existing tables untouched.)
+vg_add_column_if_missing($db, 'food_spots', 'logo', "VARCHAR(16) DEFAULT NULL");
+vg_add_column_if_missing($db, 'food_spots', 'location_url', "VARCHAR(500) DEFAULT NULL");
+vg_add_column_if_missing($db, 'buddy_requests', 'type', "VARCHAR(16) NOT NULL DEFAULT 'lunch'");
+vg_add_column_if_missing($db, 'buddy_requests', 'expires_at', "DATETIME DEFAULT NULL");
+
+/** Add a column only when it isn't already present (works for SQLite + MySQL). */
+function vg_add_column_if_missing(PDO $db, string $table, string $column, string $definition): void
+{
+    if (vg_db_is_sqlite()) {
+        $cols = $db->query("PRAGMA table_info($table)")->fetchAll();
+        foreach ($cols as $c) {
+            if (($c['name'] ?? null) === $column) {
+                return;
+            }
+        }
+    } else {
+        $stmt = $db->prepare(
+            'SELECT 1 FROM information_schema.columns
+             WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?'
+        );
+        $stmt->execute([$table, $column]);
+        if ($stmt->fetch()) {
+            return;
+        }
+    }
+    $db->exec("ALTER TABLE $table ADD COLUMN $column $definition");
+    echo "Added column $table.$column.\n";
 }
 
 if ($seed) {

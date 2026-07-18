@@ -20,6 +20,8 @@ export interface Spot {
   lat: number;
   lng: number;
   address: string | null;
+  logo: string | null;
+  location_url: string | null;
   price_level: number;
   created_by: number | null;
   created_by_name: string | null;
@@ -49,8 +51,27 @@ export interface BuddyProposal {
   created_at: string;
 }
 
+export type GrillChoice = 'beef' | 'pork' | 'veg' | 'other';
+
+export interface GrillOrder {
+  name: string;
+  choice: GrillChoice;
+  custom_text: string | null;
+  bring_own: boolean;
+  created_at: string;
+}
+
+export interface GrillSummary {
+  beef: number;
+  pork: number;
+  veg: number;
+  other: number;
+  bring_own: number;
+}
+
 export interface Buddy {
   id: number;
+  type: 'lunch' | 'grill';
   title: string;
   craving: string | null;
   spot_id: number | null;
@@ -58,12 +79,16 @@ export interface Buddy {
   desired_time: string | null;
   location_note: string | null;
   status: string;
+  expires_at: string | null;
+  is_expired?: boolean;
   created_at: string;
   host_id: number;
   host_name: string;
   participant_count: number;
   participants?: { name: string; joined_at: string }[];
   proposals?: BuddyProposal[];
+  orders?: GrillOrder[];
+  order_summary?: GrillSummary;
 }
 
 export class ApiError extends Error {
@@ -182,6 +207,8 @@ export async function createSpot(input: {
   price_level: number;
   description?: string;
   address?: string;
+  logo?: string;
+  location_url?: string;
 }): Promise<Spot> {
   const data = await request<{ spot: Spot }>('/spots', {
     method: 'POST',
@@ -218,6 +245,7 @@ export async function getBuddy(id: number): Promise<Buddy> {
 
 export async function createBuddy(input: {
   title: string;
+  type?: 'lunch' | 'grill';
   craving?: string;
   spot_id?: number | null;
   desired_time?: string | null;
@@ -232,6 +260,17 @@ export async function createBuddy(input: {
 
 export async function joinBuddy(id: number): Promise<Buddy> {
   const data = await request<{ buddy: Buddy }>('/buddies/' + id + '/join', { method: 'POST' });
+  return data.buddy;
+}
+
+export async function orderGrill(
+  id: number,
+  input: { choice: GrillChoice; custom_text?: string; bring_own: boolean }
+): Promise<Buddy> {
+  const data = await request<{ buddy: Buddy }>('/buddies/' + id + '/order', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
   return data.buddy;
 }
 
